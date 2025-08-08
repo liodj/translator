@@ -167,6 +167,15 @@
   }
 
   function loadSettingsToUI() {
+    if (el.stModel) {
+        const v = st.model || DEFAULTS.model;
+        if (![...el.stModel.options].some(o => o.value === v)) {
+        const opt = document.createElement('option');
+        opt.value = v; opt.textContent = v; el.stModel.appendChild(opt);
+        }
+        el.stModel.value = v;
+    }
+
     const st = LS.settings;
     if (el.stModel) el.stModel.value = st.model || DEFAULTS.model;
     if (el.stTone) el.stTone.value = st.tone || DEFAULTS.tone;
