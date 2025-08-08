@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>번역 노트 (Gemini 개인키 · PWA · 용어집)</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0b0f14" />
+  <style>
+    :root { --bg:#0b0f14; --fg:#e6eef8; --muted:#9db0c6; --card:#121821; --accent:#69b1ff; --danger:#ff6b6b; }
+    html,body{height:100%;}
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,Apple Color Emoji,Arial,sans-serif;}
+    header{position:sticky;top:0;background:linear-gradient(180deg,#0b0f14 70%,transparent);padding:12px 16px 8px;border-bottom:1px solid #182131;z-index:5}
+    h1{font-size:18px;margin:0 0 6px;}
+    .wrap{max-width:980px;margin:0 auto;padding:12px 16px 120px;}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .card{background:var(--card);border:1px solid #1c2738;border-radius:16px;padding:12px}
+    input,select,button,textarea{background:#0e141d;color:var(--fg);border:1px solid #263347;border-radius:12px;padding:10px 12px;font-size:15px}
+    input::placeholder,textarea::placeholder{color:#6e8096}
+    button{cursor:pointer}
+    button.primary{background:var(--accent);color:#001226;border-color:#2a5a8c}
+    button.ghost{background:transparent}
+    .hint{color:var(--muted);font-size:12px}
+    .grid{display:grid;grid-template-columns:1fr;gap:10px}
+    @media (min-width:900px){ .grid{grid-template-columns:1.1fr 1fr} }
+    .line{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:start;background:#0f1621;border:1px solid #1b2536;border-radius:14px;padding:10px}
+    .label{font-size:12px;color:#8ea5bd}
+    .orig,.tran{white-space:pre-wrap;word-break:break-word}
+    .toolbar{display:flex;gap:8px;align-items:center}
+    .spacer{flex:1}
+    .badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #2a3b55;color:#9db0c6;font-size:12px}
+    .error{color:var(--danger)}
+    details > summary{cursor:pointer;list-style:none}
+    details > summary::-webkit-details-marker{display:none}
+    .pill{display:inline-flex;align-items:center;gap:6px;background:#0f1825;border:1px solid #22324b;padding:4px 8px;border-radius:999px}
+    .pill b{color:#b7c8dc}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>번역 노트 — Gemini 개인 API 키 · PWA · 용어집</h1>
+      <div class="hint">각 사용자가 본인 <b>Gemini API 키</b>를 로컬에 저장하고, 한 줄씩 입력하면 즉시 번역합니다. 서버 저장 없음. PWA 설치 지원.</div>
+    </div>
+  </header>
+  <main class="wrap">
+    <!-- API 키 섹션 -->
+    <section class="card" aria-labelledby="sec-key">
+      <div class="row" style="gap:10px;align-items:end">
+        <div style="flex:1;min-width:220px">
+          <div class="label">Gemini API Key</div>
+          <input id="apiKey" type="password" placeholder="ex) AIza..." autocomplete="off" style="width:100%" />
+          <div class="hint">브라우저 <code>localStorage</code>에만 저장됩니다. (기기/브라우저별 별도)</div>
+        </div>
+        <button id="toggleKey" class="ghost">표시</button>
+        <button id="saveKey" class="primary">키 저장</button>
+        <button id="testKey">키 테스트</button>
+        <div id="keyMsg" class="hint"></div>
+      </div>
+    </section>
+
+    <!-- 번역 입력 섹션 -->
+    <section class="card" style="margin-top:12px">
+      <div class="row" style="gap:10px">
+        <div>
+          <div class="label">원문 언어</div>
+          <select id="srcLang">
+            <option value="auto">자동 감지</option>
+            <option value="ko">한국어</option>
+            <option value="en">영어</option>
+            <option value="ja">일본어</option>
+            <option value="zh">중국어(간체)</option>
+            <option value="de">독일어</option>
+            <option value="fr">프랑스어</option>
+            <option value="es">스페인어</option>
+          </select>
+        </div>
+        <div>
+          <div class="label">목표 언어</div>
+          <select id="tgtLang">
+            <option value="en">영어</option>
+            <option value="ko" selected>한국어</option>
+            <option value="ja">일본어</option>
+            <option value="zh">중국어(간체)</option>
+            <option value="de">독일어</option>
+            <option value="fr">프랑스어</option>
+            <option value="es">스페인어</option>
+          </select>
+        </div>
+        <div class="spacer"></div>
+        <button id="installBtn" class="ghost">앱 설치</button>
+      </div>
+      <div style="margin-top:10px">
+        <textarea id="noteInput" rows="2" placeholder="한 줄 입력 후 Enter (또는 번역 버튼)" style="width:100%"></textarea>
+        <div class="row" style="margin-top:8px">
+          <div class="hint">Tip: 줄바꿈(Shift+Enter), 전송(Enter).</div>
+          <div class="spacer"></div>
+          <button id="sendBtn" class="primary">번역</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 용어집 섹션 -->
+    <section class="card" style="margin-top:12px">
+      <details>
+        <summary class="row" style="gap:8px"><span class="pill"><b>용어집</b><span id="glossCount" class="hint">(0개)</span></span><span class="hint">고정 번역/치환</span></summary>
+        <div class="row" style="margin-top:8px;gap:8px;align-items:end">
+          <div style="flex:1;min-width:180px">
+            <div class="label">원문 용어</div>
+            <input id="gSrc" placeholder="예: 성경" style="width:100%"/>
+          </div>
+          <div style="flex:1;min-width:180px">
+            <div class="label">번역 용어</div>
+            <input id="gTgt" placeholder="예: Bible" style="width:100%"/>
+          </div>
+          <label class="hint"><input type="checkbox" id="gWhole" checked> 단어 경계 일치</label>
+          <button id="gAdd" class="primary">추가</button>
+          <button id="gClear" class="ghost">전체 삭제</button>
+        </div>
+        <div id="gList" style="margin-top:8px;display:grid;gap:6px"></div>
+        <div class="hint" style="margin-top:6px">번역 전에는 프롬프트 지시, 번역 후에는 결정적 치환을 함께 수행합니다.</div>
+      </details>
+    </section>
+
+    <!-- 결과 섹션 -->
+    <section style="margin-top:12px" class="grid">
+      <div>
+        <div class="label">원문</div>
+        <div id="origList" class="stack"></div>
+      </div>
+      <div>
+        <div class="label">번역</div>
+        <div id="tranList" class="stack"></div>
+      </div>
+    </section>
+
+    <section class="row" style="margin-top:12px">
+      <button id="exportBtn">CSV 내보내기</button>
+      <button id="clearBtn" class="ghost">모두 지우기</button>
+      <div class="spacer"></div>
+      <span class="badge" id="modelBadge">model: gemini-2.5-flash</span>
+    </section>
+
+    <p class="hint" style="margin-top:8px">주의: 브라우저에서 직접 API 호출은 프로토타입/개인용에 적합합니다. 운영 전환 시 서버 프록시(Fetch proxy)나 Firebase/Cloudflare Functions로 키 비공개 권장.</p>
+  </main>
+
+  <script type="module">
+    // === 기본 설정 ===
+    const MODEL = 'gemini-2.5-flash';
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+
+    // === 헬퍼 ===
+    const $ = (sel)=>document.querySelector(sel);
+    const el = {
+      apiKey: $('#apiKey'), keyMsg: $('#keyMsg'), saveKey: $('#saveKey'), toggleKey: $('#toggleKey'), testKey: $('#testKey'),
+      src: $('#srcLang'), tgt: $('#tgtLang'), note: $('#noteInput'), send: $('#sendBtn'),
+      origList: $('#origList'), tranList: $('#tranList'), export: $('#exportBtn'), clear: $('#clearBtn'),
+      gSrc: $('#gSrc'), gTgt: $('#gTgt'), gWhole: $('#gWhole'), gAdd: $('#gAdd'), gClear: $('#gClear'), gList: $('#gList'), gCount: $('#glossCount'),
+      installBtn: $('#installBtn')
+    };
+
+    // === 로컬 저장소 ===
+    const LS = {
+      get k(){ return localStorage.getItem('gemini_key')||'' },
+      set k(v){ localStorage.setItem('gemini_key', v||'') },
+      get src(){ return localStorage.getItem('src')||'auto' },
+      set src(v){ localStorage.setItem('src', v) },
+      get tgt(){ return localStorage.getItem('tgt')||'ko' },
+      set tgt(v){ localStorage.setItem('tgt', v) },
+      get lines(){ try{ return JSON.parse(localStorage.getItem('lines')||'[]') }catch{ return [] } },
+      set lines(v){ localStorage.setItem('lines', JSON.stringify(v||[])) },
+      get glossary(){ try{ return JSON.parse(localStorage.getItem('glossary')||'[]') }catch{ return [] } },
+      set glossary(v){ localStorage.setItem('glossary', JSON.stringify(v||[])) }
+    };
+
+    // 초기화
+    el.apiKey.value = LS.k; el.src.value = LS.src; el.tgt.value = LS.tgt; renderLines(LS.lines); renderGlossary();
+
+    // === 이벤트 ===
+    el.toggleKey.addEventListener('click', ()=>{ el.apiKey.type = el.apiKey.type==='password' ? 'text':'password'; el.toggleKey.textContent = el.apiKey.type==='password' ? '표시':'숨김'; });
+    el.saveKey.addEventListener('click', ()=>{ LS.k = el.apiKey.value.trim(); keyMsg('저장됨'); });
+    el.testKey.addEventListener('click', async ()=>{ const ok = await testKey(); keyMsg(ok?'키 정상':'키 오류', ok?'':'error'); });
+    el.src.addEventListener('change', ()=>{ LS.src = el.src.value });
+    el.tgt.addEventListener('change', ()=>{ LS.tgt = el.tgt.value });
+
+    el.note.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }});
+    el.send.addEventListener('click', send);
+
+    el.export.addEventListener('click', exportCSV);
+    el.clear.addEventListener('click', ()=>{ LS.lines = []; renderLines([]); });
+
+    el.gAdd.addEventListener('click', ()=>{
+      const s = el.gSrc.value.trim(); const t = el.gTgt.value.trim(); if(!s||!t) return;
+      const entry = {src:s, tgt:t, whole: el.gWhole.checked};
+      const list = LS.glossary.concat([entry]); LS.glossary = list; el.gSrc.value=''; el.gTgt.value=''; renderGlossary();
+    });
+    el.gClear.addEventListener('click', ()=>{ LS.glossary = []; renderGlossary(); });
+
+    // PWA 설치 버튼
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredPrompt = e; el.installBtn.style.display=''; });
+    el.installBtn.addEventListener('click', async ()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; deferredPrompt = null; });
+
+    // Service Worker 등록
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    }
+
+    // === 함수 ===
+    function keyMsg(msg, cls=''){ el.keyMsg.textContent = msg; el.keyMsg.className = 'hint ' + cls; if(msg) setTimeout(()=>{ el.keyMsg.textContent=''; }, 3000); }
+
+    function renderLines(lines){ el.origList.innerHTML=''; el.tranList.innerHTML=''; lines.forEach((l,i)=>{ el.origList.appendChild(lineEl(l.orig,i,false)); el.tranList.appendChild(lineEl(l.tran,i,true)); }); }
+
+    function lineEl(text, idx, isTran){ const div = document.createElement('div'); div.className='line'; const num = document.createElement('div'); num.textContent=idx+1; num.className='badge'; const body = document.createElement('div'); body.className = isTran? 'tran':'orig'; body.textContent=text; const btns = document.createElement('div'); btns.className='toolbar'; const copy=document.createElement('button'); copy.textContent='복사'; copy.addEventListener('click', ()=>navigator.clipboard.writeText(text)); btns.appendChild(copy); div.appendChild(num); div.appendChild(body); div.appendChild(btns); return div; }
+
+    function exportCSV(){ const rows = [['original','translation','src','tgt']].concat(LS.lines.map(l=>[l.orig,l.tran,l.src,l.tgt])); const csv = rows.map(r=>r.map(s=>`"${String(s).replace(/"/g,'""')}"`).join(',')).join('
+'); const blob = new Blob(["﻿"+csv], {type:'text/csv;charset=utf-8'}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='translations.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(url), 1000); }"`).join(',')).join('
+'); const blob = new Blob(["﻿"+csv], {type:'text/csv;charset=utf-8'}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='translations.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(url), 1000); }
+
+    function renderGlossary(){ const list = LS.glossary; el.gList.innerHTML=''; el.gCount.textContent = `(${list.length}개)`; list.forEach((g,idx)=>{ const row=document.createElement('div'); row.className='row'; const chip=document.createElement('span'); chip.className='pill'; chip.innerHTML = `<b>${escapeHTML(g.src)}</b> → ${escapeHTML(g.tgt)} ${g.whole?'(word)':''}`; const del=document.createElement('button'); del.textContent='삭제'; del.addEventListener('click', ()=>{ const arr=LS.glossary; arr.splice(idx,1); LS.glossary = arr; renderGlossary(); }); row.appendChild(chip); row.appendChild(del); el.gList.appendChild(row); }); }
+
+    function escapeHTML(s){ return s.replace(/[&<>\"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
+
+    function buildPrompt({text, src, tgt}){ const from = src === 'auto' ? 'auto-detect' : src; const gl = LS.glossary; const glossLines = gl.length ? (`
+
+Glossary (terms to enforce):
+` + gl.map(g=>`- "${g.src}" -> "${g.tgt}"${g.whole?' (whole word)':''}`).join('
+')) : ''; return `You are a professional translation engine. Translate the following text from ${from} to ${tgt}. Preserve meaning, tone, punctuation, and inline markup if any.${glossLines}
+
+Return only the translation with no quotes or extra commentary.
+
+Text:
+${text}`; }" -> "${g.tgt}"${g.whole?' (whole word)':''}`).join('
+')) : '';
+      return `You are a professional translation engine. Translate the following text from ${from} to ${tgt}. Preserve meaning, tone, punctuation, and inline markup if any.${glossLines}
+
+Return only the translation with no quotes or extra commentary.
+
+Text:
+${text}`;
+    }
+
+    async function send(){
+      const apiKey = el.apiKey.value.trim(); const text = el.note.value.trim(); if(!apiKey){ return keyMsg('API 키를 먼저 저장하세요','error'); } if(!text){ return; }
+      el.send.disabled = true; el.send.textContent='번역 중…';
+      try{
+        const {translation} = await translateOnce({ apiKey, text, src: el.src.value, tgt: el.tgt.value });
+        const final = applyDeterministicGlossary(translation, LS.glossary);
+        const lines = LS.lines.concat([{orig:text, tran:final, src:el.src.value, tgt:el.tgt.value}]); LS.lines = lines; renderLines(lines); el.note.value='';
+      }catch(err){ alert('번역 실패: '+(err?.message||err)); }
+      finally{ el.send.disabled=false; el.send.textContent='번역'; }
+    }
+
+    function applyDeterministicGlossary(out, glossary){ if(!glossary?.length) return out; let t = out; glossary.forEach(({src,tgt,whole})=>{ const esc = src.replace(/[.*+?^${}()|[\]\]/g, '\$&'); const pattern = whole ? new RegExp(`(^|\b)${esc}(?=\b|$)`, 'g') : new RegExp(esc, 'g'); t = t.replace(pattern, (m, p1)=> (whole && p1 ? p1 : '') + tgt); }); return t; })=>{
+        const esc = src.replace(/[.*+?^${}()|[\]\]/g, '\$&');
+        const pattern = whole ? new RegExp(`(^|\b)${esc}(?=\b|$)`, 'g') : new RegExp(esc, 'g');
+        t = t.replace(pattern, (m, p1)=> whole && p1 ? p1 + tgt : tgt);
+      });
+      return t;
+    }
+
+    async function translateOnce({ apiKey, text, src, tgt }){
+      const body = {
+        systemInstruction: { role: 'system', parts: [{ text: 'You translate text. Output ONLY the translation. If a glossary is supplied, obey it strictly.' }] },
+        contents: [{ role:'user', parts:[{ text: buildPrompt({text, src, tgt}) }] }]
+      };
+      const res = await fetch(API_URL, { method:'POST', headers:{ 'Content-Type':'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(body) });
+      if(!res.ok){ const errText = await res.text(); throw new Error(`HTTP ${res.status}: ${errText}`); }
+      const data = await res.json();
+      const textOut = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const blocked = data?.promptFeedback?.blockReason; if(blocked){ throw new Error('Blocked by safety filter: '+blocked); }
+      return { translation: textOut };
+    }
+  </script>
+</body>
+</html>
