@@ -3,25 +3,26 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>번역 노트 (Gemini 개인키 · PWA · 용어집)</title>
+  <title>번역 노트 (Gemini 개인키 · PWA · 용어집 · 설정)</title>
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0b0f14" />
   <style>
-    :root { --bg:#0b0f14; --fg:#e6eef8; --muted:#9db0c6; --card:#121821; --accent:#69b1ff; --danger:#ff6b6b; }
-    html,body{height:100%;}
-    body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,Apple Color Emoji,Arial,sans-serif;}
-    header{position:sticky;top:0;background:linear-gradient(180deg,#0b0f14 70%,transparent);padding:12px 16px 8px;border-bottom:1px solid #182131;z-index:5}
-    h1{font-size:18px;margin:0 0 6px;}
-    .wrap{max-width:980px;margin:0 auto;padding:12px 16px 120px;}
-    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    .card{background:var(--card);border:1px solid #1c2738;border-radius:16px;padding:12px}
+    :root { --bg:#0b0f14; --fg:#e6eef8; --muted:#9db0c6; --card:#121821; --accent:#69b1ff; --danger:#ff6b6b; --line:#1c2738; }
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,Apple Color Emoji,Arial,sans-serif}
+    header{position:sticky;top:0;background:linear-gradient(180deg,#0b0f14 70%,transparent);padding:12px 16px 10px;border-bottom:1px solid #182131;z-index:5}
+    h1{font-size:18px;margin:0 0 6px}
+    .wrap{max-width:980px;margin:0 auto;padding:12px 16px 120px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px}
     input,select,button,textarea{background:#0e141d;color:var(--fg);border:1px solid #263347;border-radius:12px;padding:10px 12px;font-size:15px}
     input::placeholder,textarea::placeholder{color:#6e8096}
+    textarea{min-height:64px}
     button{cursor:pointer}
     button.primary{background:var(--accent);color:#001226;border-color:#2a5a8c}
     button.ghost{background:transparent}
     .hint{color:var(--muted);font-size:12px}
-    .grid{display:grid;grid-template-columns:1fr;gap:10px}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
     @media (min-width:900px){ .grid{grid-template-columns:1.1fr 1fr} }
     .line{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:start;background:#0f1621;border:1px solid #1b2536;border-radius:14px;padding:10px}
     .label{font-size:12px;color:#8ea5bd}
@@ -34,6 +35,20 @@
     details > summary::-webkit-details-marker{display:none}
     .pill{display:inline-flex;align-items:center;gap:6px;background:#0f1825;border:1px solid #22324b;padding:4px 8px;border-radius:999px}
     .pill b{color:#b7c8dc}
+    /* 버튼/폼 오버플로우 방지 */
+    .row > *{min-height:40px}
+    .row .btn-group{display:flex;gap:8px;flex-wrap:wrap}
+
+    /* 설정 모달 */
+    .overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);z-index:30}
+    .overlay.show{display:flex}
+    .modal{width:min(680px,92vw);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+    .modal h2{margin:0 0 8px;font-size:18px}
+    .modal .grid2{display:grid;grid-template-columns:1fr;gap:10px}
+    @media (min-width:680px){ .modal .grid2{grid-template-columns:1fr 1fr}}
+    .modal .footer{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
+    .range-row{display:flex;align-items:center;gap:10px}
+    .range-row input[type=range]{flex:1}
   </style>
 </head>
 <body>
@@ -52,9 +67,11 @@
           <input id="apiKey" type="password" placeholder="ex) AIza..." autocomplete="off" style="width:100%" />
           <div class="hint">브라우저 <code>localStorage</code>에만 저장됩니다. (기기/브라우저별 별도)</div>
         </div>
-        <button id="toggleKey" class="ghost">표시</button>
-        <button id="saveKey" class="primary">키 저장</button>
-        <button id="testKey">키 테스트</button>
+        <div class="btn-group">
+          <button id="toggleKey" class="ghost">표시</button>
+          <button id="saveKey" class="primary">키 저장</button>
+          <button id="testKey">키 테스트</button>
+        </div>
         <div id="keyMsg" class="hint"></div>
       </div>
     </section>
@@ -88,7 +105,10 @@
           </select>
         </div>
         <div class="spacer"></div>
-        <button id="installBtn" class="ghost">앱 설치</button>
+        <div class="btn-group">
+          <button id="openSettings" class="ghost">설정</button>
+          <button id="installBtn" class="ghost">앱 설치</button>
+        </div>
       </div>
       <div style="margin-top:10px">
         <textarea id="noteInput" rows="2" placeholder="한 줄 입력 후 Enter (또는 번역 버튼)" style="width:100%"></textarea>
@@ -102,7 +122,7 @@
 
     <!-- 용어집 섹션 -->
     <section class="card" style="margin-top:12px">
-      <details>
+      <details open>
         <summary class="row" style="gap:8px"><span class="pill"><b>용어집</b><span id="glossCount" class="hint">(0개)</span></span><span class="hint">고정 번역/치환</span></summary>
         <div class="row" style="margin-top:8px;gap:8px;align-items:end">
           <div style="flex:1;min-width:180px">
@@ -114,8 +134,10 @@
             <input id="gTgt" placeholder="예: Bible" style="width:100%"/>
           </div>
           <label class="hint"><input type="checkbox" id="gWhole" checked> 단어 경계 일치</label>
-          <button id="gAdd" class="primary">추가</button>
-          <button id="gClear" class="ghost">전체 삭제</button>
+          <div class="btn-group">
+            <button id="gAdd" class="primary">추가</button>
+            <button id="gClear" class="ghost">전체 삭제</button>
+          </div>
         </div>
         <div id="gList" style="margin-top:8px;display:grid;gap:6px"></div>
         <div class="hint" style="margin-top:6px">번역 전에는 프롬프트 지시, 번역 후에는 결정적 치환을 함께 수행합니다.</div>
@@ -135,8 +157,10 @@
     </section>
 
     <section class="row" style="margin-top:12px">
-      <button id="exportBtn">CSV 내보내기</button>
-      <button id="clearBtn" class="ghost">모두 지우기</button>
+      <div class="btn-group">
+        <button id="exportBtn">CSV 내보내기</button>
+        <button id="clearBtn" class="ghost">모두 지우기</button>
+      </div>
       <div class="spacer"></div>
       <span class="badge" id="modelBadge">model: gemini-2.5-flash</span>
     </section>
@@ -144,302 +168,176 @@
     <p class="hint" style="margin-top:8px">주의: 브라우저에서 직접 API 호출은 프로토타입/개인용에 적합합니다. 운영 전환 시 서버 프록시(Fetch proxy)나 Firebase/Cloudflare Functions로 키 비공개 권장.</p>
   </main>
 
+  <!-- 설정 모달 -->
+  <div class="overlay" id="settingsOverlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <h2 id="settingsTitle">설정</h2>
+      <div class="grid2">
+        <div>
+          <div class="label">모델 (문자 그대로)</div>
+          <input id="stModel" list="modelList" placeholder="예: gemini-2.5-flash" />
+          <datalist id="modelList">
+            <option value="gemini-2.5-flash"></option>
+            <option value="gemini-1.5-flash"></option>
+            <option value="gemini-1.5-pro"></option>
+          </datalist>
+          <div class="hint">제공되는 모델명이 계정/지역에 따라 다를 수 있습니다.</div>
+        </div>
+        <div>
+          <div class="label">톤</div>
+          <select id="stTone">
+            <option value="neutral">중립</option>
+            <option value="formal">격식체</option>
+            <option value="casual">구어체</option>
+          </select>
+        </div>
+        <div>
+          <div class="label">영어 변형</div>
+          <select id="stVariety">
+            <option value="auto">자동</option>
+            <option value="us">미국식</option>
+            <option value="uk">영국식</option>
+          </select>
+        </div>
+        <div>
+          <div class="label">마크업 보존</div>
+          <label class="hint"><input type="checkbox" id="stPreserve" checked> Markdown/플레이스홀더 유지</label>
+        </div>
+        <div>
+          <div class="label">온도(temperature)</div>
+          <div class="range-row">
+            <input type="range" id="stTemp" min="0" max="1" step="0.05" value="0.2" />
+            <span class="badge" id="stTempVal">0.2</span>
+          </div>
+        </div>
+        <div>
+          <div class="label">topP</div>
+          <div class="range-row">
+            <input type="range" id="stTopP" min="0" max="1" step="0.05" value="0.95" />
+            <span class="badge" id="stTopPVal">0.95</span>
+          </div>
+        </div>
+        <div>
+          <div class="label">최대 토큰</div>
+          <input id="stMaxTok" type="number" min="128" max="8192" step="64" value="2048" />
+        </div>
+      </div>
+      <div class="footer">
+        <button id="btnCloseSettings" class="ghost">닫기</button>
+        <button id="btnSaveSettings" class="primary">저장</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
-(() => {
-  // === 상수 ===
-  const MODEL = 'gemini-2.5-flash';
-  const API_URL =
-    'https://generativelanguage.googleapis.com/v1beta/models/' +
-    MODEL + ':generateContent';
+  (()=>{
+    // === 기본 설정 ===
+    const DEFAULTS = { model:'gemini-2.5-flash', temperature:0.2, topP:0.95, maxTokens:2048, tone:'neutral', variety:'auto', preserve:true };
 
-  // === 헬퍼 ===
-  const $ = (s) => document.querySelector(s);
-  const el = {
-    apiKey: $('#apiKey'),
-    keyMsg: $('#keyMsg'),
-    saveKey: $('#saveKey'),
-    toggleKey: $('#toggleKey'),
-    testKey: $('#testKey'),
-    src: $('#srcLang'),
-    tgt: $('#tgtLang'),
-    note: $('#noteInput'),
-    send: $('#sendBtn'),
-    origList: $('#origList'),
-    tranList: $('#tranList'),
-    exportBtn: $('#exportBtn'),
-    clearBtn: $('#clearBtn'),
-    gSrc: $('#gSrc'),
-    gTgt: $('#gTgt'),
-    gWhole: $('#gWhole'),
-    gAdd: $('#gAdd'),
-    gClear: $('#gClear'),
-    gList: $('#gList'),
-    gCount: $('#glossCount'),
-    installBtn: $('#installBtn')
-  };
-
-  // === 로컬 저장소 ===
-  const LS = {
-    get k(){ return localStorage.getItem('gemini_key') || ''; },
-    set k(v){ localStorage.setItem('gemini_key', v || ''); },
-    get src(){ return localStorage.getItem('src') || 'auto'; },
-    set src(v){ localStorage.setItem('src', v); },
-    get tgt(){ return localStorage.getItem('tgt') || 'ko'; },
-    set tgt(v){ localStorage.setItem('tgt', v); },
-    get lines(){
-      try { return JSON.parse(localStorage.getItem('lines') || '[]'); }
-      catch { return []; }
-    },
-    set lines(v){ localStorage.setItem('lines', JSON.stringify(v || [])); },
-    get glossary(){
-      try { return JSON.parse(localStorage.getItem('glossary') || '[]'); }
-      catch { return []; }
-    },
-    set glossary(v){ localStorage.setItem('glossary', JSON.stringify(v || [])); }
-  };
-
-  // === 초기화 ===
-  if (el.apiKey) el.apiKey.value = LS.k;
-  if (el.src) el.src.value = LS.src;
-  if (el.tgt) el.tgt.value = LS.tgt;
-  renderLines(LS.lines);
-  renderGlossary();
-
-  // PWA 설치 프롬프트
-  let deferredPrompt = null;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    if (el.installBtn) el.installBtn.style.display = '';
-  });
-  if (el.installBtn) {
-    el.installBtn.addEventListener('click', async () => {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
-      deferredPrompt = null;
-    });
-  }
-  // SW 등록
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
-  }
-
-  // === 이벤트 바인딩 ===
-  if (el.toggleKey) {
-    el.toggleKey.addEventListener('click', () => {
-      el.apiKey.type = (el.apiKey.type === 'password') ? 'text' : 'password';
-      el.toggleKey.textContent = (el.apiKey.type === 'password') ? '표시' : '숨김';
-    });
-  }
-  if (el.saveKey) el.saveKey.addEventListener('click', () => { LS.k = el.apiKey.value.trim(); keyMsg('저장됨'); });
-  if (el.testKey) el.testKey.addEventListener('click', async () => { const ok = await testKey(); keyMsg(ok ? '키 정상' : '키 오류', ok ? '' : 'error'); });
-  if (el.src) el.src.addEventListener('change', () => { LS.src = el.src.value; });
-  if (el.tgt) el.tgt.addEventListener('change', () => { LS.tgt = el.tgt.value; });
-
-  if (el.note) {
-    el.note.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
-    });
-  }
-  if (el.send) el.send.addEventListener('click', send);
-
-  if (el.exportBtn) el.exportBtn.addEventListener('click', exportCSV);
-  if (el.clearBtn) el.clearBtn.addEventListener('click', () => { LS.lines = []; renderLines([]); });
-
-  if (el.gAdd) el.gAdd.addEventListener('click', () => {
-    const s = (el.gSrc ? el.gSrc.value.trim() : '');
-    const t = (el.gTgt ? el.gTgt.value.trim() : '');
-    if (!s || !t) return;
-    const entry = { src: s, tgt: t, whole: el.gWhole && el.gWhole.checked };
-    const list = LS.glossary.concat([entry]);
-    LS.glossary = list;
-    if (el.gSrc) el.gSrc.value = '';
-    if (el.gTgt) el.gTgt.value = '';
-    renderGlossary();
-  });
-  if (el.gClear) el.gClear.addEventListener('click', () => { LS.glossary = []; renderGlossary(); });
-
-  // === 함수들 ===
-  function keyMsg(msg, cls) {
-    if (!el.keyMsg) return;
-    el.keyMsg.textContent = msg;
-    el.keyMsg.className = 'hint ' + (cls || '');
-    if (msg) setTimeout(() => { el.keyMsg.textContent = ''; }, 3000);
-  }
-
-  function renderLines(lines) {
-    if (!el.origList || !el.tranList) return;
-    el.origList.innerHTML = '';
-    el.tranList.innerHTML = '';
-    lines.forEach((l, i) => {
-      el.origList.appendChild(lineEl(l.orig, i, false));
-      el.tranList.appendChild(lineEl(l.tran, i, true));
-    });
-  }
-
-  function lineEl(text, idx, isTran) {
-    const div = document.createElement('div');
-    div.className = 'line';
-    const num = document.createElement('div');
-    num.textContent = (idx + 1);
-    num.className = 'badge';
-    const body = document.createElement('div');
-    body.className = isTran ? 'tran' : 'orig';
-    body.textContent = text;
-    const btns = document.createElement('div');
-    btns.className = 'toolbar';
-    const copy = document.createElement('button');
-    copy.textContent = '복사';
-    copy.addEventListener('click', () => { navigator.clipboard.writeText(text); });
-    btns.appendChild(copy);
-    div.appendChild(num);
-    div.appendChild(body);
-    div.appendChild(btns);
-    return div;
-  }
-
-  function exportCSV() {
-    const rows = [['original','translation','src','tgt']]
-      .concat(LS.lines.map(l => [l.orig, l.tran, l.src, l.tgt]));
-    const csv = rows
-      .map(r => r.map(s => '"' + String(s).replace(/"/g, '""') + '"').join(','))
-      .join('\n'); // 줄바꿈은 반드시 \n
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'translations.csv'; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  function renderGlossary() {
-    if (!el.gList || !el.gCount) return;
-    const list = LS.glossary;
-    el.gList.innerHTML = '';
-    el.gCount.textContent = '(' + list.length + '개)';
-    list.forEach((g, idx) => {
-      const row = document.createElement('div');
-      row.className = 'row';
-      const chip = document.createElement('span');
-      chip.className = 'pill';
-      chip.innerHTML =
-        '<b>' + escapeHTML(g.src) + '</b> → ' + escapeHTML(g.tgt) +
-        (g.whole ? ' (word)' : '');
-      const del = document.createElement('button');
-      del.textContent = '삭제';
-      del.addEventListener('click', () => {
-        const arr = LS.glossary;
-        arr.splice(idx, 1);
-        LS.glossary = arr;
-        renderGlossary();
-      });
-      row.appendChild(chip);
-      row.appendChild(del);
-      el.gList.appendChild(row);
-    });
-  }
-
-  function escapeHTML(s) {
-    return String(s).replace(/[&<>"]/g, (c) => (
-      { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]
-    ));
-  }
-
-  function buildPrompt(text, src, tgt) {
-    const from = (src === 'auto') ? 'auto-detect' : src;
-    const gl = LS.glossary || [];
-    // 텍스트는 항상 마지막에 붙여 안전
-    let glossLines = '';
-    if (gl.length) {
-      const lines = gl.map(g =>
-        '- "' + g.src + '" -> "' + g.tgt + '"' + (g.whole ? ' (whole word)' : '')
-      );
-      glossLines = '\n\nGlossary (terms to enforce):\n' + lines.join('\n');
-    }
-    const prompt =
-      'You are a professional translation engine. ' +
-      'Translate the following text from ' + from + ' to ' + tgt + '. ' +
-      'Preserve meaning, tone, punctuation, and inline markup if any.' +
-      glossLines + '\n\n' +
-      'Return only the translation with no quotes or extra commentary.' +
-      '\n\nText:\n' + text;
-    return prompt;
-  }
-
-  function applyDeterministicGlossary(out, glossary) {
-    if (!glossary || !glossary.length) return out;
-    // 표준 이스케이프
-    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    let t = out;
-    glossary.forEach((item) => {
-      const escSrc = esc(String(item.src));
-      const re = item.whole
-        ? new RegExp('(^|\\b)' + escSrc + '(?=\\b|$)', 'g')
-        : new RegExp(escSrc, 'g');
-      t = t.replace(re, (m, p1) => (item.whole && p1 ? p1 : '') + String(item.tgt));
-    });
-    return t;
-  }
-
-  async function translateOnce(apiKey, text, src, tgt) {
-    const body = {
-      systemInstruction: {
-        role: 'system',
-        parts: [{ text: 'You translate text. Output ONLY the translation. If a glossary is supplied, obey it strictly.' }]
-      },
-      contents: [{ role: 'user', parts: [{ text: buildPrompt(text, src, tgt) }] }]
+    // === 엘리먼트 ===
+    const $ = (s)=>document.querySelector(s);
+    const el = {
+      apiKey: $('#apiKey'), keyMsg: $('#keyMsg'), saveKey: $('#saveKey'), toggleKey: $('#toggleKey'), testKey: $('#testKey'),
+      src: $('#srcLang'), tgt: $('#tgtLang'), note: $('#noteInput'), send: $('#sendBtn'),
+      origList: $('#origList'), tranList: $('#tranList'), exportBtn: $('#exportBtn'), clearBtn: $('#clearBtn'), modelBadge: $('#modelBadge'),
+      gSrc: $('#gSrc'), gTgt: $('#gTgt'), gWhole: $('#gWhole'), gAdd: $('#gAdd'), gClear: $('#gClear'), gList: $('#gList'), gCount: $('#glossCount'),
+      installBtn: $('#installBtn'), openSettings: $('#openSettings'), overlay: $('#settingsOverlay'),
+      stModel: $('#stModel'), stTone: $('#stTone'), stVariety: $('#stVariety'), stPreserve: $('#stPreserve'), stTemp: $('#stTemp'), stTopP: $('#stTopP'), stMaxTok: $('#stMaxTok'),
+      stTempVal: $('#stTempVal'), stTopPVal: $('#stTopPVal'), btnSaveSettings: $('#btnSaveSettings'), btnCloseSettings: $('#btnCloseSettings')
     };
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
-      },
-      body: JSON.stringify(body)
-    });
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error('HTTP ' + res.status + ': ' + errText);
-    }
-    const data = await res.json();
-    const out = (data && data.candidates && data.candidates[0] &&
-                 data.candidates[0].content && data.candidates[0].content.parts &&
-                 data.candidates[0].content.parts[0] &&
-                 data.candidates[0].content.parts[0].text) || '';
-    if (data && data.promptFeedback && data.promptFeedback.blockReason) {
-      throw new Error('Blocked by safety: ' + data.promptFeedback.blockReason);
-    }
-    return out;
-  }
 
-  async function testKey() {
-    try {
-      const txt = await translateOnce( (el.apiKey ? el.apiKey.value.trim() : ''), 'ping', 'en', 'ko');
-      return !!txt;
-    } catch (_e) { return false; }
-  }
+    // === 로컬 저장소 ===
+    const LS = {
+      get k(){ return localStorage.getItem('gemini_key')||'' },
+      set k(v){ localStorage.setItem('gemini_key', v||'') },
+      get src(){ return localStorage.getItem('src')||'auto' },
+      set src(v){ localStorage.setItem('src', v) },
+      get tgt(){ return localStorage.getItem('tgt')||'ko' },
+      set tgt(v){ localStorage.setItem('tgt', v) },
+      get lines(){ try{ return JSON.parse(localStorage.getItem('lines')||'[]') }catch{ return [] } },
+      set lines(v){ localStorage.setItem('lines', JSON.stringify(v||[])) },
+      get glossary(){ try{ return JSON.parse(localStorage.getItem('glossary')||'[]') }catch{ return [] } },
+      set glossary(v){ localStorage.setItem('glossary', JSON.stringify(v||[])) },
+      get settings(){ try{ return JSON.parse(localStorage.getItem('settings')||'null')||DEFAULTS }catch{ return DEFAULTS } },
+      set settings(v){ localStorage.setItem('settings', JSON.stringify(v||DEFAULTS)) }
+    };
 
-  async function send() {
-    const apiKey = el.apiKey ? el.apiKey.value.trim() : '';
-    const text = el.note ? el.note.value.trim() : '';
-    if (!apiKey) { keyMsg('API 키를 먼저 저장하세요', 'error'); return; }
-    if (!text) return;
-    if (el.send) { el.send.disabled = true; el.send.textContent = '번역 중…'; }
-    try {
-      const raw = await translateOnce(apiKey, text, (el.src ? el.src.value : 'auto'), (el.tgt ? el.tgt.value : 'ko'));
-      const final = applyDeterministicGlossary(raw, LS.glossary);
-      const lines = LS.lines.concat([{ orig: text, tran: final, src: (el.src ? el.src.value : 'auto'), tgt: (el.tgt ? el.tgt.value : 'ko') }]);
-      LS.lines = lines;
-      renderLines(lines);
-      if (el.note) el.note.value = '';
-    } catch (err) {
-      alert('번역 실패: ' + (err && err.message ? err.message : String(err)));
-    } finally {
-      if (el.send) { el.send.disabled = false; el.send.textContent = '번역'; }
-    }
-  }
-})();
-</script>
+    // === 초기화 ===
+    if(el.apiKey) el.apiKey.value = LS.k;
+    if(el.src) el.src.value = LS.src;
+    if(el.tgt) el.tgt.value = LS.tgt;
+    renderLines(LS.lines);
+    renderGlossary();
+    loadSettingsToUI();
 
+    // Service Worker 등록
+    if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js').catch(()=>{}); }
+
+    // === 이벤트 ===
+    if(el.toggleKey) el.toggleKey.addEventListener('click', ()=>{ el.apiKey.type = el.apiKey.type==='password' ? 'text':'password'; el.toggleKey.textContent = el.apiKey.type==='password' ? '표시':'숨김'; });
+    if(el.saveKey) el.saveKey.addEventListener('click', ()=>{ LS.k = el.apiKey.value.trim(); keyMsg('저장됨'); });
+    if(el.testKey) el.testKey.addEventListener('click', async ()=>{ const ok = await testKey(); keyMsg(ok?'키 정상':'키 오류', ok?'':'error'); });
+    if(el.src) el.src.addEventListener('change', ()=>{ LS.src = el.src.value });
+    if(el.tgt) el.tgt.addEventListener('change', ()=>{ LS.tgt = el.tgt.value });
+
+    if(el.note) el.note.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }});
+    if(el.send) el.send.addEventListener('click', send);
+
+    if(el.exportBtn) el.exportBtn.addEventListener('click', exportCSV);
+    if(el.clearBtn) el.clearBtn.addEventListener('click', ()=>{ LS.lines = []; renderLines([]); });
+
+    if(el.gAdd) el.gAdd.addEventListener('click', ()=>{ const s = el.gSrc.value.trim(); const t = el.gTgt.value.trim(); if(!s||!t) return; const entry = {src:s, tgt:t, whole: el.gWhole && el.gWhole.checked}; const list = LS.glossary.concat([entry]); LS.glossary = list; el.gSrc.value=''; el.gTgt.value=''; renderGlossary(); });
+    if(el.gClear) el.gClear.addEventListener('click', ()=>{ LS.glossary = []; renderGlossary(); });
+
+    if(el.openSettings) el.openSettings.addEventListener('click', ()=>{ el.overlay.classList.add('show'); });
+    if(el.btnCloseSettings) el.btnCloseSettings.addEventListener('click', ()=>{ el.overlay.classList.remove('show'); loadSettingsToUI(); });
+    if(el.overlay) el.overlay.addEventListener('click', (e)=>{ if(e.target===el.overlay) el.overlay.classList.remove('show'); });
+
+    if(el.stTemp) el.stTemp.addEventListener('input', ()=>{ el.stTempVal.textContent = String(el.stTemp.value) });
+    if(el.stTopP) el.stTopP.addEventListener('input', ()=>{ el.stTopPVal.textContent = String(el.stTopP.value) });
+    if(el.btnSaveSettings) el.btnSaveSettings.addEventListener('click', ()=>{ saveSettingsFromUI(); el.overlay.classList.remove('show'); });
+
+    // === 함수들 ===
+    function keyMsg(msg, cls=''){ if(!el.keyMsg) return; el.keyMsg.textContent = msg; el.keyMsg.className = 'hint ' + cls; if(msg) setTimeout(()=>{ el.keyMsg.textContent=''; }, 3000); }
+
+    function renderLines(lines){ if(!el.origList||!el.tranList) return; el.origList.innerHTML=''; el.tranList.innerHTML=''; lines.forEach((l,i)=>{ el.origList.appendChild(lineEl(l.orig,i,false)); el.tranList.appendChild(lineEl(l.tran,i,true)); }); }
+
+    function lineEl(text, idx, isTran){ const div = document.createElement('div'); div.className='line'; const num = document.createElement('div'); num.textContent=idx+1; num.className='badge'; const body = document.createElement('div'); body.className = isTran? 'tran':'orig'; body.textContent=String(text); const btns = document.createElement('div'); btns.className='toolbar'; const copy=document.createElement('button'); copy.textContent='복사'; copy.addEventListener('click', ()=>navigator.clipboard.writeText(String(text))); btns.appendChild(copy); div.appendChild(num); div.appendChild(body); div.appendChild(btns); return div; }
+
+    function exportCSV(){ const rows = [['original','translation','src','tgt']].concat(LS.lines.map(l=>[l.orig,l.tran,l.src,l.tgt])); const csv = rows.map(r=>r.map(s=>'"'+String(s).replace(/"/g,'""')+'"').join(',')).join('
+'); const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='translations.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(url), 1000); }
+
+    function renderGlossary(){ if(!el.gList||!el.gCount) return; const list = LS.glossary; el.gList.innerHTML=''; el.gCount.textContent = '('+list.length+'개)'; list.forEach((g,idx)=>{ const row=document.createElement('div'); row.className='row'; const chip=document.createElement('span'); chip.className='pill'; chip.innerHTML = '<b>'+escapeHTML(g.src)+'</b> → '+escapeHTML(g.tgt)+' '+(g.whole?'(word)':''); const del=document.createElement('button'); del.textContent='삭제'; del.addEventListener('click', ()=>{ const arr=LS.glossary; arr.splice(idx,1); LS.glossary = arr; renderGlossary(); }); row.appendChild(chip); row.appendChild(del); el.gList.appendChild(row); }); }
+
+    function escapeHTML(s){ return String(s).replace(/[&<>\"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
+
+    function loadSettingsToUI(){ const st = LS.settings; if(el.stModel) el.stModel.value = st.model || DEFAULTS.model; if(el.stTone) el.stTone.value = st.tone || DEFAULTS.tone; if(el.stVariety) el.stVariety.value = st.variety || DEFAULTS.variety; if(el.stPreserve) el.stPreserve.checked = ('preserve' in st ? !!st.preserve : DEFAULTS.preserve); if(el.stTemp){ el.stTemp.value = String(st.temperature ?? DEFAULTS.temperature); el.stTempVal.textContent = String(el.stTemp.value); } if(el.stTopP){ el.stTopP.value = String(st.topP ?? DEFAULTS.topP); el.stTopPVal.textContent = String(el.stTopP.value); } if(el.stMaxTok) el.stMaxTok.value = String(st.maxTokens ?? DEFAULTS.maxTokens); if(el.modelBadge) el.modelBadge.textContent = 'model: '+(st.model||DEFAULTS.model); }
+
+    function saveSettingsFromUI(){ const st = LS.settings; const next = { model: (el.stModel && el.stModel.value ? el.stModel.value.trim() : st.model || DEFAULTS.model), tone: el.stTone? el.stTone.value : st.tone, variety: el.stVariety? el.stVariety.value : st.variety, preserve: el.stPreserve? !!el.stPreserve.checked : st.preserve, temperature: el.stTemp? Number(el.stTemp.value) : st.temperature, topP: el.stTopP? Number(el.stTopP.value) : st.topP, maxTokens: el.stMaxTok? Number(el.stMaxTok.value) : st.maxTokens };
+      LS.settings = next; loadSettingsToUI(); }
+
+    function styleDirectives(tgt){ const st = LS.settings; const lines = []; if(st.tone==='formal') lines.push('Use a formal tone appropriate for professional documents.'); if(st.tone==='casual') lines.push('Use a natural conversational tone.'); if((tgt==='en'||tgt==='en-US'||tgt==='en-GB') && st.variety==='us') lines.push('Use American English conventions.'); if((tgt==='en'||tgt==='en-US'||tgt==='en-GB') && st.variety==='uk') lines.push('Use British English conventions.'); if(st.preserve) lines.push('Preserve inline markup (Markdown, placeholders) exactly as given.'); return lines.join(' '); }
+
+    function buildPrompt(text, src, tgt){ const from = (src==='auto') ? 'auto-detect' : src; const gl = LS.glossary || []; let glossLines = ''; if(gl.length){ const lines = gl.map(g=>'- "'+g.src+'" -> "'+g.tgt+'"'+(g.whole?' (whole word)':'')); glossLines = '
+
+Glossary (terms to enforce):
+'+lines.join('
+'); } const prompt = 'You are a professional translation engine. Translate the following text from '+from+' to '+tgt+'. '+ styleDirectives(tgt) + glossLines + '
+
+Return only the translation with no quotes or extra commentary.' + '
+
+Text:
+' + text; return prompt; }
+
+    function applyDeterministicGlossary(out, glossary){ if(!glossary||!glossary.length) return out; const esc=(s)=>String(s).replace(/[.*+?^${}()|[\]\]/g,'\$&'); let t=String(out); glossary.forEach((item)=>{ const escSrc = esc(item.src); const re = item.whole ? new RegExp('(^|\b)'+escSrc+'(?=\b|$)','g') : new RegExp(escSrc,'g'); t = t.replace(re, (m,p1)=> (item.whole && p1 ? p1 : '') + String(item.tgt)); }); return t; }
+
+    async function translateOnce(apiKey, text, src, tgt){ const st = LS.settings; const body = { systemInstruction: { role:'system', parts:[{ text:'You translate text. Output ONLY the translation. If a glossary is supplied, obey it strictly.' }] }, contents: [{ role:'user', parts:[{ text: buildPrompt(text, src, tgt) }] }], generationConfig: { temperature: Number(st.temperature||0), topP: Number(st.topP||1), maxOutputTokens: Number(st.maxTokens||2048) } };
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(st.model||DEFAULTS.model)+':generateContent', { method:'POST', headers:{ 'Content-Type':'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(body) }); if(!res.ok){ const errText = await res.text(); throw new Error('HTTP '+res.status+': '+errText); } const data = await res.json(); const out = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text || ''; if(data && data.promptFeedback && data.promptFeedback.blockReason){ throw new Error('Blocked by safety: '+data.promptFeedback.blockReason); } return out; }
+
+    async function testKey(){ try{ const okText = await translateOnce((el.apiKey? el.apiKey.value.trim():''),'ping','en','ko'); return !!okText; }catch(_){ return false } }
+
+    async function send(){ const apiKey = el.apiKey? el.apiKey.value.trim() : ''; const text = el.note? el.note.value.trim() : ''; if(!apiKey){ return keyMsg('API 키를 먼저 저장하세요','error'); } if(!text){ return; } if(el.send){ el.send.disabled=true; el.send.textContent='번역 중…'; } try{ const raw = await translateOnce(apiKey, text, (el.src?el.src.value:'auto'), (el.tgt?el.tgt.value:'ko')); const final = applyDeterministicGlossary(raw, LS.glossary); const lines = LS.lines.concat([{orig:text, tran:final, src:(el.src?el.src.value:'auto'), tgt:(el.tgt?el.tgt.value:'ko')}]); LS.lines = lines; renderLines(lines); if(el.note) el.note.value=''; }catch(err){ alert('번역 실패: '+(err && err.message ? err.message : String(err))); } finally { if(el.send){ el.send.disabled=false; el.send.textContent='번역'; } } }
+  })();
+  </script>
 </body>
 </html>
