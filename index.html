@@ -221,10 +221,33 @@
 
     function escapeHTML(s){ return s.replace(/[&<>\"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
 
-    function buildPrompt({text, src, tgt}){ const from = src === 'auto' ? 'auto-detect' : src; const gl = LS.glossary; const glossLines = gl.length ? (`
+    function buildPrompt({text, src, tgt}){
+  var from = (src === 'auto') ? 'auto-detect' : src;
+  var gl = LS.glossary;
+  var glossLines = '';
+  if (gl && gl.length) {
+    var lines = gl.map(function(g){
+      return '- "' + g.src + '" -> "' + g.tgt + '"' + (g.whole ? ' (whole word)' : '');
+    });
+    glossLines = '
 
 Glossary (terms to enforce):
-` + gl.map(g=>`- "${g.src}" -> "${g.tgt}"${g.whole?' (whole word)':''}`).join('
+' + lines.join('
+');
+  }
+  var prompt = 'You are a professional translation engine. ' +
+               'Translate the following text from ' + from + ' to ' + tgt + '. ' +
+               'Preserve meaning, tone, punctuation, and inline markup if any.' +
+               glossLines + '
+
+' +
+               'Return only the translation with no quotes or extra commentary.' +
+               '
+
+Text:
+' + text;
+  return prompt;
+}" -> "${g.tgt}"${g.whole?' (whole word)':''}`).join('
 ')) : ''; return `You are a professional translation engine. Translate the following text from ${from} to ${tgt}. Preserve meaning, tone, punctuation, and inline markup if any.${glossLines}
 
 Return only the translation with no quotes or extra commentary.
@@ -251,7 +274,17 @@ ${text}`;
       finally{ el.send.disabled=false; el.send.textContent='번역'; }
     }
 
-    function applyDeterministicGlossary(out, glossary){ if(!glossary?.length) return out; let t = out; glossary.forEach(({src,tgt,whole})=>{ const esc = src.replace(/[.*+?^${}()|[\]\]/g, '\$&'); const pattern = whole ? new RegExp(`(^|\b)${esc}(?=\b|$)`, 'g') : new RegExp(esc, 'g'); t = t.replace(pattern, (m, p1)=> (whole && p1 ? p1 : '') + tgt); }); return t; })=>{
+    function applyDeterministicGlossary(out, glossary){
+  if(!glossary || !glossary.length) return out;
+  function esc(s){ return s.replace(/[.*+?^${}()|[\]\]/g, '\$&'); }
+  var t = out;
+  glossary.forEach(function(item){
+    var escSrc = esc(item.src);
+    var pattern = item.whole ? new RegExp('(^|\b)'+escSrc+'(?=\b|$)', 'g') : new RegExp(escSrc, 'g');
+    t = t.replace(pattern, function(_m, p1){ return (item.whole && p1 ? p1 : '') + item.tgt; });
+  });
+  return t;
+})=>{ const esc = src.replace(/[.*+?^${}()|[\]\]/g, '\$&'); const pattern = whole ? new RegExp(`(^|\b)${esc}(?=\b|$)`, 'g') : new RegExp(esc, 'g'); t = t.replace(pattern, (m, p1)=> (whole && p1 ? p1 : '') + tgt); }); return t; })=>{
         const esc = src.replace(/[.*+?^${}()|[\]\]/g, '\$&');
         const pattern = whole ? new RegExp(`(^|\b)${esc}(?=\b|$)`, 'g') : new RegExp(esc, 'g');
         t = t.replace(pattern, (m, p1)=> whole && p1 ? p1 + tgt : tgt);
