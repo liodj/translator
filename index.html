@@ -44,6 +44,24 @@
     .grid{display:grid;grid-template-columns:1fr;gap:12px}
     @media (min-width:900px){ .grid{grid-template-columns:1.1fr 1fr} }
 
+    /* 공통: 줄바꿈 허용 + 버티기 */
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+    /* 키 입력칸은 가로를 가져가고, 버튼은 고정폭으로 유지 */
+    .key-field{flex:1 1 360px; min-width:260px; position:relative; z-index:0;}
+    .btn-group{flex:0 0 auto; display:flex; gap:8px; flex-wrap:wrap; position:relative; z-index:3;}
+
+    /* 요소 자체 크기/계산 안정화 */
+    input,select,textarea,button{box-sizing:border-box}
+    .key-field input{width:100%; display:block; position:relative; z-index:0;}
+    #noteInput{width:100%; display:block}
+
+    /* 포커스 표시가 이웃을 덮지 않도록(시인성 유지) */
+    input:focus-visible, textarea:focus-visible, select:focus-visible{
+      outline:2px solid var(--accent);
+      outline-offset:2px;   /* 바깥으로 2px */
+    }
+
     /* 설정 모달 */
     .overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);z-index:30}
     .overlay.show{display:flex}
@@ -67,7 +85,7 @@
     <!-- API 키 섹션 -->
     <section class="card" aria-labelledby="sec-key">
       <div class="row" style="gap:10px;align-items:end">
-        <div style="flex:1;min-width:220px">
+        <div class="key-field" style="flex:1;min-width:220px">
           <div class="label">Gemini API Key</div>
           <input id="apiKey" type="password" placeholder="ex) AIza..." autocomplete="off" style="width:100%" />
           <div class="hint">브라우저 <code>localStorage</code>에만 저장됩니다. (기기/브라우저별 별도)</div>
@@ -115,11 +133,6 @@
           <button id="installBtn" class="ghost">앱 설치</button>
         </div>
         <div class="spacer"></div>
-        <div class="btn-group">
-          <button id="openSettings" class="ghost">설정</button>
-          <button id="installBtn" class="ghost">앱 설치</button>
-        </div>
-      </div>
       <div style="margin-top:10px">
         <textarea id="noteInput" rows="2" placeholder="한 줄 입력 후 Enter (또는 번역 버튼)" style="width:100%"></textarea>
         <div class="row" style="margin-top:8px">
