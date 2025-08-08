@@ -24,7 +24,11 @@
     stModel: $('#stModel'), stTone: $('#stTone'), stVariety: $('#stVariety'), stPreserve: $('#stPreserve'),
     stTemp: $('#stTemp'), stTopP: $('#stTopP'), stMaxTok: $('#stMaxTok'),
     stTempVal: $('#stTempVal'), stTopPVal: $('#stTopPVal'),
-    btnSaveSettings: $('#btnSaveSettings'), btnCloseSettings: $('#btnCloseSettings')
+    btnSaveSettings: $('#btnSaveSettings'), btnCloseSettings: $('#btnCloseSettings'),
+    layoutMode: $('#layoutMode'),
+    resSplit: $('#resSplit'),
+    resPair: $('#resPair'),
+    pairList: $('#pairList'),
   };
 
   // === localStorage 래퍼 ===
@@ -40,7 +44,9 @@
     get glossary(){ try { return JSON.parse(localStorage.getItem('glossary') || '[]'); } catch { return []; } },
     set glossary(v){ localStorage.setItem('glossary', JSON.stringify(v || [])); },
     get settings(){ try { return JSON.parse(localStorage.getItem('settings') || 'null') || DEFAULTS; } catch { return DEFAULTS; } },
-    set settings(v){ localStorage.setItem('settings', JSON.stringify(v || DEFAULTS)); }
+    set settings(v){ localStorage.setItem('settings', JSON.stringify(v || DEFAULTS)); },
+    get layout(){ return localStorage.getItem('layout') || 'split'; },
+    set layout(v){ localStorage.setItem('layout', v); },
   };
 
   // === 초기 렌더 ===
@@ -50,6 +56,10 @@
   renderLines(LS.lines);
   renderGlossary();
   loadSettingsToUI();
+
+  if (el.layoutMode) el.layoutMode.value = LS.layout;
+  applyLayout();
+
 
   // === PWA 설치 & SW ===
   let deferredPrompt = null;
@@ -103,6 +113,11 @@
   if (el.stTemp) el.stTemp.addEventListener('input', () => { el.stTempVal.textContent = String(el.stTemp.value); });
   if (el.stTopP) el.stTopP.addEventListener('input', () => { el.stTopPVal.textContent = String(el.stTopP.value); });
   if (el.btnSaveSettings) el.btnSaveSettings.addEventListener('click', () => { saveSettingsFromUI(); el.overlay.classList.remove('show'); });
+  if (el.layoutMode) el.layoutMode.addEventListener('change', () => {
+    LS.layout = el.layoutMode.value;
+    applyLayout();
+  });
+
 
   // === 함수들 ===
   function keyMsg(msg, cls) {
@@ -112,13 +127,47 @@
     if (msg) setTimeout(() => { el.keyMsg.textContent = ''; }, 3000);
   }
 
-  function renderLines(lines) {
-    if (!el.origList || !el.tranList) return;
-    el.origList.innerHTML = ''; el.tranList.innerHTML = '';
-    lines.forEach((l, i) => {
-      el.origList.appendChild(lineEl(l.orig, i, false));
-      el.tranList.appendChild(lineEl(l.tran, i, true));
-    });
+  function renderLines(lines){
+    // 좌우 2열
+    if (el.origList && el.tranList){
+        el.origList.innerHTML = '';
+        el.tranList.innerHTML = '';
+        lines.forEach((l,i)=>{
+        el.origList.appendChild(lineEl(l.orig, i, false));
+        el.tranList.appendChild(lineEl(l.tran, i, true));
+        });
+    }
+    // 세로(원문→번역)
+    if (el.pairList){
+        el.pairList.innerHTML = '';
+        lines.forEach((l,i)=>{
+        el.pairList.appendChild(pairItemEl(l, i));
+        });
+    }
+  }
+
+  function pairItemEl(l, idx){
+    const wrap = document.createElement('div');
+    wrap.className = 'item';
+
+    const id = document.createElement('div');
+    id.className = 'idx';
+    id.textContent = idx + 1;
+
+    const text = document.createElement('div');
+    text.className = 'text';
+
+    const o = document.createElement('div');
+    o.className = 'orig';
+    o.textContent = String(l.orig);
+
+    const t = document.createElement('div');
+    t.className = 'tran';
+    t.textContent = String(l.tran);
+
+    text.appendChild(o); text.appendChild(t);
+    wrap.appendChild(id); wrap.appendChild(text);
+    return wrap;
   }
 
   function lineEl(text, idx, isTran) {
@@ -254,6 +303,20 @@
     });
     return t;
   }
+
+  function applyLayout(){
+    if (!el.resSplit || !el.resPair) return;
+    const mode = LS.layout;
+    if (el.layoutMode) el.layoutMode.value = mode;
+    if (mode === 'pair'){
+        el.resSplit.hidden = true;
+        el.resPair.hidden = false;
+    } else {
+        el.resSplit.hidden = false;
+        el.resPair.hidden = true;
+    }
+  }
+
 
   async function translateOnce(apiKey, text, src, tgt) {
     const st = LS.settings;
