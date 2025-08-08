@@ -145,175 +145,301 @@
   </main>
 
   <script type="module">
-    // === 기본 설정 ===
-    const MODEL = 'gemini-2.5-flash';
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+(() => {
+  // === 상수 ===
+  const MODEL = 'gemini-2.5-flash';
+  const API_URL =
+    'https://generativelanguage.googleapis.com/v1beta/models/' +
+    MODEL + ':generateContent';
 
-    // === 헬퍼 ===
-    const $ = (sel)=>document.querySelector(sel);
-    const el = {
-      apiKey: $('#apiKey'), keyMsg: $('#keyMsg'), saveKey: $('#saveKey'), toggleKey: $('#toggleKey'), testKey: $('#testKey'),
-      src: $('#srcLang'), tgt: $('#tgtLang'), note: $('#noteInput'), send: $('#sendBtn'),
-      origList: $('#origList'), tranList: $('#tranList'), export: $('#exportBtn'), clear: $('#clearBtn'),
-      gSrc: $('#gSrc'), gTgt: $('#gTgt'), gWhole: $('#gWhole'), gAdd: $('#gAdd'), gClear: $('#gClear'), gList: $('#gList'), gCount: $('#glossCount'),
-      installBtn: $('#installBtn')
-    };
+  // === 헬퍼 ===
+  const $ = (s) => document.querySelector(s);
+  const el = {
+    apiKey: $('#apiKey'),
+    keyMsg: $('#keyMsg'),
+    saveKey: $('#saveKey'),
+    toggleKey: $('#toggleKey'),
+    testKey: $('#testKey'),
+    src: $('#srcLang'),
+    tgt: $('#tgtLang'),
+    note: $('#noteInput'),
+    send: $('#sendBtn'),
+    origList: $('#origList'),
+    tranList: $('#tranList'),
+    exportBtn: $('#exportBtn'),
+    clearBtn: $('#clearBtn'),
+    gSrc: $('#gSrc'),
+    gTgt: $('#gTgt'),
+    gWhole: $('#gWhole'),
+    gAdd: $('#gAdd'),
+    gClear: $('#gClear'),
+    gList: $('#gList'),
+    gCount: $('#glossCount'),
+    installBtn: $('#installBtn')
+  };
 
-    // === 로컬 저장소 ===
-    const LS = {
-      get k(){ return localStorage.getItem('gemini_key')||'' },
-      set k(v){ localStorage.setItem('gemini_key', v||'') },
-      get src(){ return localStorage.getItem('src')||'auto' },
-      set src(v){ localStorage.setItem('src', v) },
-      get tgt(){ return localStorage.getItem('tgt')||'ko' },
-      set tgt(v){ localStorage.setItem('tgt', v) },
-      get lines(){ try{ return JSON.parse(localStorage.getItem('lines')||'[]') }catch{ return [] } },
-      set lines(v){ localStorage.setItem('lines', JSON.stringify(v||[])) },
-      get glossary(){ try{ return JSON.parse(localStorage.getItem('glossary')||'[]') }catch{ return [] } },
-      set glossary(v){ localStorage.setItem('glossary', JSON.stringify(v||[])) }
-    };
+  // === 로컬 저장소 ===
+  const LS = {
+    get k(){ return localStorage.getItem('gemini_key') || ''; },
+    set k(v){ localStorage.setItem('gemini_key', v || ''); },
+    get src(){ return localStorage.getItem('src') || 'auto'; },
+    set src(v){ localStorage.setItem('src', v); },
+    get tgt(){ return localStorage.getItem('tgt') || 'ko'; },
+    set tgt(v){ localStorage.setItem('tgt', v); },
+    get lines(){
+      try { return JSON.parse(localStorage.getItem('lines') || '[]'); }
+      catch { return []; }
+    },
+    set lines(v){ localStorage.setItem('lines', JSON.stringify(v || [])); },
+    get glossary(){
+      try { return JSON.parse(localStorage.getItem('glossary') || '[]'); }
+      catch { return []; }
+    },
+    set glossary(v){ localStorage.setItem('glossary', JSON.stringify(v || [])); }
+  };
 
-    // 초기화
-    el.apiKey.value = LS.k; el.src.value = LS.src; el.tgt.value = LS.tgt; renderLines(LS.lines); renderGlossary();
+  // === 초기화 ===
+  if (el.apiKey) el.apiKey.value = LS.k;
+  if (el.src) el.src.value = LS.src;
+  if (el.tgt) el.tgt.value = LS.tgt;
+  renderLines(LS.lines);
+  renderGlossary();
 
-    // === 이벤트 ===
-    el.toggleKey.addEventListener('click', ()=>{ el.apiKey.type = el.apiKey.type==='password' ? 'text':'password'; el.toggleKey.textContent = el.apiKey.type==='password' ? '표시':'숨김'; });
-    el.saveKey.addEventListener('click', ()=>{ LS.k = el.apiKey.value.trim(); keyMsg('저장됨'); });
-    el.testKey.addEventListener('click', async ()=>{ const ok = await testKey(); keyMsg(ok?'키 정상':'키 오류', ok?'':'error'); });
-    el.src.addEventListener('change', ()=>{ LS.src = el.src.value });
-    el.tgt.addEventListener('change', ()=>{ LS.tgt = el.tgt.value });
-
-    el.note.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }});
-    el.send.addEventListener('click', send);
-
-    el.export.addEventListener('click', exportCSV);
-    el.clear.addEventListener('click', ()=>{ LS.lines = []; renderLines([]); });
-
-    el.gAdd.addEventListener('click', ()=>{
-      const s = el.gSrc.value.trim(); const t = el.gTgt.value.trim(); if(!s||!t) return;
-      const entry = {src:s, tgt:t, whole: el.gWhole.checked};
-      const list = LS.glossary.concat([entry]); LS.glossary = list; el.gSrc.value=''; el.gTgt.value=''; renderGlossary();
-    });
-    el.gClear.addEventListener('click', ()=>{ LS.glossary = []; renderGlossary(); });
-
-    // PWA 설치 버튼
-    let deferredPrompt = null;
-    window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredPrompt = e; el.installBtn.style.display=''; });
-    el.installBtn.addEventListener('click', async ()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; deferredPrompt = null; });
-
-    // Service Worker 등록
-    if('serviceWorker' in navigator){
-      navigator.serviceWorker.register('./sw.js').catch(()=>{});
-    }
-
-    // === 함수 ===
-    function keyMsg(msg, cls=''){ el.keyMsg.textContent = msg; el.keyMsg.className = 'hint ' + cls; if(msg) setTimeout(()=>{ el.keyMsg.textContent=''; }, 3000); }
-
-    function renderLines(lines){ el.origList.innerHTML=''; el.tranList.innerHTML=''; lines.forEach((l,i)=>{ el.origList.appendChild(lineEl(l.orig,i,false)); el.tranList.appendChild(lineEl(l.tran,i,true)); }); }
-
-    function lineEl(text, idx, isTran){ const div = document.createElement('div'); div.className='line'; const num = document.createElement('div'); num.textContent=idx+1; num.className='badge'; const body = document.createElement('div'); body.className = isTran? 'tran':'orig'; body.textContent=text; const btns = document.createElement('div'); btns.className='toolbar'; const copy=document.createElement('button'); copy.textContent='복사'; copy.addEventListener('click', ()=>navigator.clipboard.writeText(text)); btns.appendChild(copy); div.appendChild(num); div.appendChild(body); div.appendChild(btns); return div; }
-
-    function exportCSV() {
-      const rows = [['original','translation','src','tgt']]
-        .concat(LS.lines.map(l => [l.orig, l.tran, l.src, l.tgt]));
-
-      const csv = rows
-        .map(r => r.map(s => '"' + String(s).replace(/"/g, '""') + '"').join(','))
-        .join('\n'); // ← 줄바꿈은 꼭 '\n' 로!
-
-      const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'translations.csv'; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    }
-
-
-
-    function renderGlossary(){ const list = LS.glossary; el.gList.innerHTML=''; el.gCount.textContent = `(${list.length}개)`; list.forEach((g,idx)=>{ const row=document.createElement('div'); row.className='row'; const chip=document.createElement('span'); chip.className='pill'; chip.innerHTML = `<b>${escapeHTML(g.src)}</b> → ${escapeHTML(g.tgt)} ${g.whole?'(word)':''}`; const del=document.createElement('button'); del.textContent='삭제'; del.addEventListener('click', ()=>{ const arr=LS.glossary; arr.splice(idx,1); LS.glossary = arr; renderGlossary(); }); row.appendChild(chip); row.appendChild(del); el.gList.appendChild(row); }); }
-
-    function escapeHTML(s){ return s.replace(/[&<>\"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
-
-    function buildPrompt({text, src, tgt}){
-  var from = (src === 'auto') ? 'auto-detect' : src;
-  var gl = LS.glossary;
-  var glossLines = '';
-  if (gl && gl.length) {
-    var lines = gl.map(function(g){
-      return '- "' + g.src + '" -> "' + g.tgt + '"' + (g.whole ? ' (whole word)' : '');
-    });
-    glossLines = '
-
-Glossary (terms to enforce):
-' + lines.join('');
-}
-  var prompt = 'You are a professional translation engine. ' +
-               'Translate the following text from ' + from + ' to ' + tgt + '. ' +
-               'Preserve meaning, tone, punctuation, and inline markup if any.' +
-               glossLines + '
-
-' +
-               'Return only the translation with no quotes or extra commentary.' +
-               '
-
-Text:
-' + text;
-  return prompt;
-}" -> "${g.tgt}"${g.whole?' (whole word)':''}`).join('')) : ''; return `You are a professional translation engine. Translate the following text from ${from} to ${tgt}. Preserve meaning, tone, punctuation, and inline markup if any.${glossLines}
-
-Return only the translation with no quotes or extra commentary.
-
-Text:
-${text}`; }" -> "${g.tgt}"${g.whole?' (whole word)':''}`).join('')) : '';
-      return `You are a professional translation engine. Translate the following text from ${from} to ${tgt}. Preserve meaning, tone, punctuation, and inline markup if any.${glossLines}
-
-Return only the translation with no quotes or extra commentary.
-
-Text:
-${text}`;
-    }
-
-    async function send(){
-      const apiKey = el.apiKey.value.trim(); const text = el.note.value.trim(); if(!apiKey){ return keyMsg('API 키를 먼저 저장하세요','error'); } if(!text){ return; }
-      el.send.disabled = true; el.send.textContent='번역 중…';
-      try{
-        const {translation} = await translateOnce({ apiKey, text, src: el.src.value, tgt: el.tgt.value });
-        const final = applyDeterministicGlossary(translation, LS.glossary);
-        const lines = LS.lines.concat([{orig:text, tran:final, src:el.src.value, tgt:el.tgt.value}]); LS.lines = lines; renderLines(lines); el.note.value='';
-      }catch(err){ alert('번역 실패: '+(err?.message||err)); }
-      finally{ el.send.disabled=false; el.send.textContent='번역'; }
-    }
-
-    function applyDeterministicGlossary(out, glossary){
-  if(!glossary || !glossary.length) return out;
-  function esc(s){ return s.replace(/[.*+?^${}()|[\]\]/g, '\$&'); }
-  var t = out;
-  glossary.forEach(function(item){
-    var escSrc = esc(item.src);
-    var pattern = item.whole ? new RegExp('(^|\b)'+escSrc+'(?=\b|$)', 'g') : new RegExp(escSrc, 'g');
-    t = t.replace(pattern, function(_m, p1){ return (item.whole && p1 ? p1 : '') + item.tgt; });
+  // PWA 설치 프롬프트
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (el.installBtn) el.installBtn.style.display = '';
   });
-  return t;
-})=>{ const esc = src.replace(/[.*+?^${}()|[\]\]/g, '\$&'); const pattern = whole ? new RegExp(`(^|\b)${esc}(?=\b|$)`, 'g') : new RegExp(esc, 'g'); t = t.replace(pattern, (m, p1)=> (whole && p1 ? p1 : '') + tgt); }); return t; })=>{
-        const esc = src.replace(/[.*+?^${}()|[\]\]/g, '\$&');
-        const pattern = whole ? new RegExp(`(^|\b)${esc}(?=\b|$)`, 'g') : new RegExp(esc, 'g');
-        t = t.replace(pattern, (m, p1)=> whole && p1 ? p1 + tgt : tgt);
-      });
-      return t;
-    }
+  if (el.installBtn) {
+    el.installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+    });
+  }
+  // SW 등록
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
 
-    async function translateOnce({ apiKey, text, src, tgt }){
-      const body = {
-        systemInstruction: { role: 'system', parts: [{ text: 'You translate text. Output ONLY the translation. If a glossary is supplied, obey it strictly.' }] },
-        contents: [{ role:'user', parts:[{ text: buildPrompt({text, src, tgt}) }] }]
-      };
-      const res = await fetch(API_URL, { method:'POST', headers:{ 'Content-Type':'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(body) });
-      if(!res.ok){ const errText = await res.text(); throw new Error(`HTTP ${res.status}: ${errText}`); }
-      const data = await res.json();
-      const textOut = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const blocked = data?.promptFeedback?.blockReason; if(blocked){ throw new Error('Blocked by safety filter: '+blocked); }
-      return { translation: textOut };
+  // === 이벤트 바인딩 ===
+  if (el.toggleKey) {
+    el.toggleKey.addEventListener('click', () => {
+      el.apiKey.type = (el.apiKey.type === 'password') ? 'text' : 'password';
+      el.toggleKey.textContent = (el.apiKey.type === 'password') ? '표시' : '숨김';
+    });
+  }
+  if (el.saveKey) el.saveKey.addEventListener('click', () => { LS.k = el.apiKey.value.trim(); keyMsg('저장됨'); });
+  if (el.testKey) el.testKey.addEventListener('click', async () => { const ok = await testKey(); keyMsg(ok ? '키 정상' : '키 오류', ok ? '' : 'error'); });
+  if (el.src) el.src.addEventListener('change', () => { LS.src = el.src.value; });
+  if (el.tgt) el.tgt.addEventListener('change', () => { LS.tgt = el.tgt.value; });
+
+  if (el.note) {
+    el.note.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    });
+  }
+  if (el.send) el.send.addEventListener('click', send);
+
+  if (el.exportBtn) el.exportBtn.addEventListener('click', exportCSV);
+  if (el.clearBtn) el.clearBtn.addEventListener('click', () => { LS.lines = []; renderLines([]); });
+
+  if (el.gAdd) el.gAdd.addEventListener('click', () => {
+    const s = (el.gSrc ? el.gSrc.value.trim() : '');
+    const t = (el.gTgt ? el.gTgt.value.trim() : '');
+    if (!s || !t) return;
+    const entry = { src: s, tgt: t, whole: el.gWhole && el.gWhole.checked };
+    const list = LS.glossary.concat([entry]);
+    LS.glossary = list;
+    if (el.gSrc) el.gSrc.value = '';
+    if (el.gTgt) el.gTgt.value = '';
+    renderGlossary();
+  });
+  if (el.gClear) el.gClear.addEventListener('click', () => { LS.glossary = []; renderGlossary(); });
+
+  // === 함수들 ===
+  function keyMsg(msg, cls) {
+    if (!el.keyMsg) return;
+    el.keyMsg.textContent = msg;
+    el.keyMsg.className = 'hint ' + (cls || '');
+    if (msg) setTimeout(() => { el.keyMsg.textContent = ''; }, 3000);
+  }
+
+  function renderLines(lines) {
+    if (!el.origList || !el.tranList) return;
+    el.origList.innerHTML = '';
+    el.tranList.innerHTML = '';
+    lines.forEach((l, i) => {
+      el.origList.appendChild(lineEl(l.orig, i, false));
+      el.tranList.appendChild(lineEl(l.tran, i, true));
+    });
+  }
+
+  function lineEl(text, idx, isTran) {
+    const div = document.createElement('div');
+    div.className = 'line';
+    const num = document.createElement('div');
+    num.textContent = (idx + 1);
+    num.className = 'badge';
+    const body = document.createElement('div');
+    body.className = isTran ? 'tran' : 'orig';
+    body.textContent = text;
+    const btns = document.createElement('div');
+    btns.className = 'toolbar';
+    const copy = document.createElement('button');
+    copy.textContent = '복사';
+    copy.addEventListener('click', () => { navigator.clipboard.writeText(text); });
+    btns.appendChild(copy);
+    div.appendChild(num);
+    div.appendChild(body);
+    div.appendChild(btns);
+    return div;
+  }
+
+  function exportCSV() {
+    const rows = [['original','translation','src','tgt']]
+      .concat(LS.lines.map(l => [l.orig, l.tran, l.src, l.tgt]));
+    const csv = rows
+      .map(r => r.map(s => '"' + String(s).replace(/"/g, '""') + '"').join(','))
+      .join('\n'); // 줄바꿈은 반드시 \n
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'translations.csv'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function renderGlossary() {
+    if (!el.gList || !el.gCount) return;
+    const list = LS.glossary;
+    el.gList.innerHTML = '';
+    el.gCount.textContent = '(' + list.length + '개)';
+    list.forEach((g, idx) => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const chip = document.createElement('span');
+      chip.className = 'pill';
+      chip.innerHTML =
+        '<b>' + escapeHTML(g.src) + '</b> → ' + escapeHTML(g.tgt) +
+        (g.whole ? ' (word)' : '');
+      const del = document.createElement('button');
+      del.textContent = '삭제';
+      del.addEventListener('click', () => {
+        const arr = LS.glossary;
+        arr.splice(idx, 1);
+        LS.glossary = arr;
+        renderGlossary();
+      });
+      row.appendChild(chip);
+      row.appendChild(del);
+      el.gList.appendChild(row);
+    });
+  }
+
+  function escapeHTML(s) {
+    return String(s).replace(/[&<>"]/g, (c) => (
+      { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]
+    ));
+  }
+
+  function buildPrompt(text, src, tgt) {
+    const from = (src === 'auto') ? 'auto-detect' : src;
+    const gl = LS.glossary || [];
+    // 텍스트는 항상 마지막에 붙여 안전
+    let glossLines = '';
+    if (gl.length) {
+      const lines = gl.map(g =>
+        '- "' + g.src + '" -> "' + g.tgt + '"' + (g.whole ? ' (whole word)' : '')
+      );
+      glossLines = '\n\nGlossary (terms to enforce):\n' + lines.join('\n');
     }
-  </script>
+    const prompt =
+      'You are a professional translation engine. ' +
+      'Translate the following text from ' + from + ' to ' + tgt + '. ' +
+      'Preserve meaning, tone, punctuation, and inline markup if any.' +
+      glossLines + '\n\n' +
+      'Return only the translation with no quotes or extra commentary.' +
+      '\n\nText:\n' + text;
+    return prompt;
+  }
+
+  function applyDeterministicGlossary(out, glossary) {
+    if (!glossary || !glossary.length) return out;
+    // 표준 이스케이프
+    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let t = out;
+    glossary.forEach((item) => {
+      const escSrc = esc(String(item.src));
+      const re = item.whole
+        ? new RegExp('(^|\\b)' + escSrc + '(?=\\b|$)', 'g')
+        : new RegExp(escSrc, 'g');
+      t = t.replace(re, (m, p1) => (item.whole && p1 ? p1 : '') + String(item.tgt));
+    });
+    return t;
+  }
+
+  async function translateOnce(apiKey, text, src, tgt) {
+    const body = {
+      systemInstruction: {
+        role: 'system',
+        parts: [{ text: 'You translate text. Output ONLY the translation. If a glossary is supplied, obey it strictly.' }]
+      },
+      contents: [{ role: 'user', parts: [{ text: buildPrompt(text, src, tgt) }] }]
+    };
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
+      },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error('HTTP ' + res.status + ': ' + errText);
+    }
+    const data = await res.json();
+    const out = (data && data.candidates && data.candidates[0] &&
+                 data.candidates[0].content && data.candidates[0].content.parts &&
+                 data.candidates[0].content.parts[0] &&
+                 data.candidates[0].content.parts[0].text) || '';
+    if (data && data.promptFeedback && data.promptFeedback.blockReason) {
+      throw new Error('Blocked by safety: ' + data.promptFeedback.blockReason);
+    }
+    return out;
+  }
+
+  async function testKey() {
+    try {
+      const txt = await translateOnce( (el.apiKey ? el.apiKey.value.trim() : ''), 'ping', 'en', 'ko');
+      return !!txt;
+    } catch (_e) { return false; }
+  }
+
+  async function send() {
+    const apiKey = el.apiKey ? el.apiKey.value.trim() : '';
+    const text = el.note ? el.note.value.trim() : '';
+    if (!apiKey) { keyMsg('API 키를 먼저 저장하세요', 'error'); return; }
+    if (!text) return;
+    if (el.send) { el.send.disabled = true; el.send.textContent = '번역 중…'; }
+    try {
+      const raw = await translateOnce(apiKey, text, (el.src ? el.src.value : 'auto'), (el.tgt ? el.tgt.value : 'ko'));
+      const final = applyDeterministicGlossary(raw, LS.glossary);
+      const lines = LS.lines.concat([{ orig: text, tran: final, src: (el.src ? el.src.value : 'auto'), tgt: (el.tgt ? el.tgt.value : 'ko') }]);
+      LS.lines = lines;
+      renderLines(lines);
+      if (el.note) el.note.value = '';
+    } catch (err) {
+      alert('번역 실패: ' + (err && err.message ? err.message : String(err)));
+    } finally {
+      if (el.send) { el.send.disabled = false; el.send.textContent = '번역'; }
+    }
+  }
+})();
+</script>
+
 </body>
 </html>
