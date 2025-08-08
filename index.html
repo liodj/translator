@@ -54,7 +54,9 @@
     /* 요소 자체 크기/계산 안정화 */
     input,select,textarea,button{box-sizing:border-box}
     .key-field input{width:100%; display:block; position:relative; z-index:0;}
-    #noteInput{width:100%; display:block}
+    /* 입력영역을 flex 행 밖으로 한 줄 전부 차지 */
+    .note-wrap{flex:1 0 100%; width:100%}
+    #noteInput{width:100%; display:block; min-height:64px}
 
     /* 포커스 표시가 이웃을 덮지 않도록(시인성 유지) */
     input:focus-visible, textarea:focus-visible, select:focus-visible{
@@ -132,9 +134,11 @@
           <button id="openSettings" class="ghost">설정</button>
           <button id="installBtn" class="ghost">앱 설치</button>
         </div>
-        <div class="spacer"></div>
-      <div style="margin-top:10px">
-        <textarea id="noteInput" rows="2" placeholder="한 줄 입력 후 Enter (또는 번역 버튼)" style="width:100%"></textarea>
+      </div>
+
+      <!-- ★ textarea는 별도 블록(note-wrap) 안에서 100% 폭으로 -->
+      <div class="note-wrap" style="margin-top:10px">
+        <textarea id="noteInput" rows="3" placeholder="한 줄 입력 후 Enter (또는 번역 버튼)"></textarea>
         <div class="row" style="margin-top:8px">
           <div class="hint">Tip: 줄바꿈(Shift+Enter), 전송(Enter).</div>
           <div class="spacer"></div>
@@ -142,6 +146,7 @@
         </div>
       </div>
     </section>
+
 
     <!-- 용어집 섹션 -->
     <section class="card" style="margin-top:12px">
@@ -201,6 +206,8 @@
         <input id="stModel" list="modelList" placeholder="예: gemini-2.5-flash" />
         <datalist id="modelList">
           <option value="gemini-2.5-flash"></option>
+          <option value="gemini-2.5-flash-lite"></option>
+          <option value="gemini-2.5-pro"></option>
           <option value="gemini-1.5-flash"></option>
           <option value="gemini-1.5-pro"></option>
         </datalist>
