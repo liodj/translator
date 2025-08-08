@@ -13,6 +13,8 @@
     preserve: true
   };
 
+  const selected = new Set(); // 체크된 라인 인덱스 보관
+
   // === 셀렉터 ===
   const $ = (s) => document.querySelector(s);
   const el = {
@@ -29,6 +31,13 @@
     resSplit: $('#resSplit'),
     resPair: $('#resPair'),
     pairList: $('#pairList'),
+    layoutMode: $('#layoutMode'),
+    resSplit: $('#resSplit'),
+    resPair: $('#resPair'),
+    pairList: $('#pairList'),
+    copyMode: $('#copyMode'),
+    btnCopySel: $('#btnCopySel'),
+    selToggle: $('#selToggle'),
   };
 
   // === localStorage 래퍼 ===
@@ -118,6 +127,17 @@
     applyLayout();
   });
 
+    // 선택 복사 & 전체선택
+    if (el.btnCopySel) el.btnCopySel.addEventListener('click', copySelected);
+    if (el.selToggle) el.selToggle.addEventListener('change', (e) => {
+        const on = e.target.checked;
+        document.querySelectorAll('input.sel[data-idx]').forEach(cb => {
+            cb.checked = on;
+            const i = Number(cb.dataset.idx);
+            if (on) selected.add(i); else selected.delete(i);
+        });
+    });
+
 
   // === 함수들 ===
   function keyMsg(msg, cls) {
@@ -133,8 +153,8 @@
         el.origList.innerHTML = '';
         el.tranList.innerHTML = '';
         lines.forEach((l,i)=>{
-        el.origList.appendChild(lineEl(l.orig, i, false));
-        el.tranList.appendChild(lineEl(l.tran, i, true));
+        el.origList.appendChild(lineEl(l, i, false)); // 원문 라인
+        el.tranList.appendChild(lineEl(l, i, true));  // 번역 라인
         });
     }
     // 세로(원문→번역)
@@ -144,7 +164,10 @@
         el.pairList.appendChild(pairItemEl(l, i));
         });
     }
+    // 렌더 후 현재 레이아웃만 보이도록 한 번 더 보정
+    applyLayout();
   }
+
 
   function pairItemEl(l, idx){
     const wrap = document.createElement('div');
@@ -158,27 +181,118 @@
     text.className = 'text';
 
     const o = document.createElement('div');
-    o.className = 'orig';
+    o.className = 'orig editable'; o.contentEditable = 'true';
     o.textContent = String(l.orig);
+    o.addEventListener('blur', () => {
+        const lines = LS.lines; lines[idx].orig = o.textContent || ''; LS.lines = lines;
+    });
 
     const t = document.createElement('div');
-    t.className = 'tran';
+    t.className = 'tran editable'; t.contentEditable = 'true';
     t.textContent = String(l.tran);
+    t.addEventListener('blur', () => {
+        const lines = LS.lines; lines[idx].tran = t.textContent || ''; LS.lines = lines;
+    });
 
-    text.appendChild(o); text.appendChild(t);
+    // 툴바 (체크/복사/재번역)
+    const tools = document.createElement('div');
+    tools.className = 'toolbar';
+    const cb = document.createElement('input');
+    cb.type='checkbox'; cb.className='sel'; cb.dataset.idx = idx;
+    cb.checked = selected.has(idx);
+    cb.addEventListener('change', () => {
+        if (cb.checked) selected.add(idx); else selected.delete(idx);
+    });
+    const copy = document.createElement('button'); copy.textContent='복사';
+    copy.addEventListener('click', ()=> {
+        const mode = el.copyMode?.value || 'both';
+        const txt = (mode==='orig') ? o.textContent :
+                    (mode==='tran') ? t.textContent :
+                    (o.textContent + '\n' + t.textContent);
+        navigator.clipboard.writeText(txt || '');
+    });
+    const rerun = document.createElement('button'); rerun.textContent='재번역';
+    rerun.addEventListener('click', async ()=> {
+        const apiKey = (el.apiKey?.value || '').trim();
+        if (!apiKey) { alert('API 키를 먼저 저장하세요'); return; }
+        try{
+        const raw = await translateOnce(apiKey, (LS.lines[idx].orig || ''), (el.src?el.src.value:'auto'), (el.tgt?el.tgt.value:'ko'));
+        const final = applyDeterministicGlossary(raw, LS.glossary);
+        const lines = LS.lines; lines[idx].tran = final; LS.lines = lines; renderLines(lines);
+        }catch(err){ alert('재번역 실패: ' + (err?.message || String(err))); }
+    });
+    tools.appendChild(cb); tools.appendChild(copy); tools.appendChild(rerun);
+
+    text.appendChild(o); text.appendChild(t); text.appendChild(tools);
     wrap.appendChild(id); wrap.appendChild(text);
     return wrap;
   }
 
-  function lineEl(text, idx, isTran) {
-    const div = document.createElement('div'); div.className = 'line';
-    const num = document.createElement('div'); num.textContent = (idx + 1); num.className = 'badge';
-    const body = document.createElement('div'); body.className = isTran ? 'tran' : 'orig'; body.textContent = String(text);
-    const btns = document.createElement('div'); btns.className = 'toolbar';
-    const copy = document.createElement('button'); copy.textContent = '복사';
-    copy.addEventListener('click', () => { navigator.clipboard.writeText(String(text)); });
+  function lineEl(line, idx, isTran){
+    const text = isTran ? line.tran : line.orig;
+
+    const div = document.createElement('div');
+    div.className = 'line';
+
+    const num = document.createElement('div');
+    num.textContent = idx + 1;
+    num.className = 'badge';
+
+    const body = document.createElement('div');
+    body.className = isTran ? 'tran editable' : 'orig editable';
+    body.contentEditable = 'true';
+    body.textContent = String(text);
+
+    // 편집 → 저장
+    body.addEventListener('blur', () => {
+        const val = body.textContent || '';
+        const lines = LS.lines;
+        if (isTran) lines[idx].tran = val;
+        else        lines[idx].orig = val;
+        LS.lines = lines;
+        // 원문 수정 후 즉시 재번역이 필요한 경우는 버튼 눌러서 수행 (아래)
+    });
+
+    const btns = document.createElement('div');
+    btns.className = 'toolbar';
+
+    // 체크박스
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.className = 'sel'; cb.dataset.idx = idx;
+    cb.checked = selected.has(idx);
+    cb.addEventListener('change', () => {
+        if (cb.checked) selected.add(idx); else selected.delete(idx);
+    });
+    btns.appendChild(cb);
+
+    // 복사
+    const copy = document.createElement('button');
+    copy.textContent = '복사';
+    copy.addEventListener('click', () => navigator.clipboard.writeText(body.textContent || ''));
     btns.appendChild(copy);
-    div.appendChild(num); div.appendChild(body); div.appendChild(btns);
+
+    // 재번역 (원문 쪽에만)
+    if (!isTran){
+        const rerun = document.createElement('button');
+        rerun.textContent = '재번역';
+        rerun.addEventListener('click', async () => {
+        const apiKey = (el.apiKey?.value || '').trim();
+        if (!apiKey) { alert('API 키를 먼저 저장하세요'); return; }
+        // 최신 원문으로 재번역
+        try{
+            const raw = await translateOnce(apiKey, (LS.lines[idx].orig || ''), (el.src?el.src.value:'auto'), (el.tgt?el.tgt.value:'ko'));
+            const final = applyDeterministicGlossary(raw, LS.glossary);
+            const lines = LS.lines;
+            lines[idx].tran = final; LS.lines = lines;
+            renderLines(lines);
+        }catch(err){ alert('재번역 실패: ' + (err?.message || String(err))); }
+        });
+        btns.appendChild(rerun);
+    }
+
+    div.appendChild(num);
+    div.appendChild(body);
+    div.appendChild(btns);
     return div;
   }
 
@@ -308,15 +422,24 @@
     if (!el.resSplit || !el.resPair) return;
     const mode = LS.layout;
     if (el.layoutMode) el.layoutMode.value = mode;
-    if (mode === 'pair'){
-        el.resSplit.hidden = true;
-        el.resPair.hidden = false;
-    } else {
-        el.resSplit.hidden = false;
-        el.resPair.hidden = true;
-    }
+    el.resSplit.hidden = (mode === 'pair');
+    el.resPair.hidden  = (mode !== 'pair');
   }
 
+  function copySelected(){
+    const mode = el.copyMode?.value || 'both';
+    const lines = LS.lines;
+    const idxs = Array.from(selected).sort((a,b)=>a-b).filter(i => i>=0 && i<lines.length);
+    if (!idxs.length){ alert('선택된 항목이 없습니다.'); return; }
+    const parts = idxs.map(i => {
+        const L = lines[i];
+        if (mode==='orig') return L.orig || '';
+        if (mode==='tran') return L.tran || '';
+        return (L.orig || '') + '\n' + (L.tran || '');
+    });
+    const text = parts.join('\n'); // 줄바꿈으로 연결
+    navigator.clipboard.writeText(text);
+  }
 
   async function translateOnce(apiKey, text, src, tgt) {
     const st = LS.settings;
