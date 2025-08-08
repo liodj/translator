@@ -36,19 +36,24 @@
     .pill{display:inline-flex;align-items:center;gap:6px;background:#0f1825;border:1px solid #22324b;padding:4px 8px;border-radius:999px}
     .pill b{color:#b7c8dc}
     /* 버튼/폼 오버플로우 방지 */
+    /* 레이아웃 튜닝 */
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
     .row > *{min-height:40px}
-    .row .btn-group{display:flex;gap:8px;flex-wrap:wrap}
+    .btn-group{display:flex;gap:8px;flex-wrap:wrap}
+    textarea{min-height:64px}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    @media (min-width:900px){ .grid{grid-template-columns:1.1fr 1fr} }
 
     /* 설정 모달 */
     .overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);z-index:30}
     .overlay.show{display:flex}
-    .modal{width:min(680px,92vw);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+    .modal{width:min(680px,92vw);background:#121821;border:1px solid #1c2738;border-radius:16px;padding:14px}
     .modal h2{margin:0 0 8px;font-size:18px}
     .modal .grid2{display:grid;grid-template-columns:1fr;gap:10px}
-    @media (min-width:680px){ .modal .grid2{grid-template-columns:1fr 1fr}}
-    .modal .footer{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
+    @media (min-width:680px){ .modal .grid2{grid-template-columns:1fr 1fr} }
     .range-row{display:flex;align-items:center;gap:10px}
     .range-row input[type=range]{flex:1}
+
   </style>
 </head>
 <body>
@@ -103,6 +108,11 @@
             <option value="fr">프랑스어</option>
             <option value="es">스페인어</option>
           </select>
+        </div>
+        <div class="spacer"></div>
+        <div class="btn-group">
+          <button id="openSettings" class="ghost">설정</button>
+          <button id="installBtn" class="ghost">앱 설치</button>
         </div>
         <div class="spacer"></div>
         <div class="btn-group">
@@ -170,64 +180,63 @@
 
   <!-- 설정 모달 -->
   <div class="overlay" id="settingsOverlay" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-      <h2 id="settingsTitle">설정</h2>
-      <div class="grid2">
-        <div>
-          <div class="label">모델 (문자 그대로)</div>
-          <input id="stModel" list="modelList" placeholder="예: gemini-2.5-flash" />
-          <datalist id="modelList">
-            <option value="gemini-2.5-flash"></option>
-            <option value="gemini-1.5-flash"></option>
-            <option value="gemini-1.5-pro"></option>
-          </datalist>
-          <div class="hint">제공되는 모델명이 계정/지역에 따라 다를 수 있습니다.</div>
-        </div>
-        <div>
-          <div class="label">톤</div>
-          <select id="stTone">
-            <option value="neutral">중립</option>
-            <option value="formal">격식체</option>
-            <option value="casual">구어체</option>
-          </select>
-        </div>
-        <div>
-          <div class="label">영어 변형</div>
-          <select id="stVariety">
-            <option value="auto">자동</option>
-            <option value="us">미국식</option>
-            <option value="uk">영국식</option>
-          </select>
-        </div>
-        <div>
-          <div class="label">마크업 보존</div>
-          <label class="hint"><input type="checkbox" id="stPreserve" checked> Markdown/플레이스홀더 유지</label>
-        </div>
-        <div>
-          <div class="label">온도(temperature)</div>
-          <div class="range-row">
-            <input type="range" id="stTemp" min="0" max="1" step="0.05" value="0.2" />
-            <span class="badge" id="stTempVal">0.2</span>
-          </div>
-        </div>
-        <div>
-          <div class="label">topP</div>
-          <div class="range-row">
-            <input type="range" id="stTopP" min="0" max="1" step="0.05" value="0.95" />
-            <span class="badge" id="stTopPVal">0.95</span>
-          </div>
-        </div>
-        <div>
-          <div class="label">최대 토큰</div>
-          <input id="stMaxTok" type="number" min="128" max="8192" step="64" value="2048" />
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <h2 id="settingsTitle">설정</h2>
+    <div class="grid2">
+      <div>
+        <div class="label">모델</div>
+        <input id="stModel" list="modelList" placeholder="예: gemini-2.5-flash" />
+        <datalist id="modelList">
+          <option value="gemini-2.5-flash"></option>
+          <option value="gemini-1.5-flash"></option>
+          <option value="gemini-1.5-pro"></option>
+        </datalist>
+      </div>
+      <div>
+        <div class="label">톤</div>
+        <select id="stTone">
+          <option value="neutral">중립</option>
+          <option value="formal">격식체</option>
+          <option value="casual">구어체</option>
+        </select>
+      </div>
+      <div>
+        <div class="label">영어 변형</div>
+        <select id="stVariety">
+          <option value="auto">자동</option>
+          <option value="us">미국식</option>
+          <option value="uk">영국식</option>
+        </select>
+      </div>
+      <div>
+        <div class="label">마크업 보존</div>
+        <label class="hint"><input type="checkbox" id="stPreserve" checked> Markdown/플레이스홀더 유지</label>
+      </div>
+      <div>
+        <div class="label">온도(temperature)</div>
+        <div class="range-row">
+          <input type="range" id="stTemp" min="0" max="1" step="0.05" value="0.2" />
+          <span class="badge" id="stTempVal">0.2</span>
         </div>
       </div>
-      <div class="footer">
-        <button id="btnCloseSettings" class="ghost">닫기</button>
-        <button id="btnSaveSettings" class="primary">저장</button>
+      <div>
+        <div class="label">topP</div>
+        <div class="range-row">
+          <input type="range" id="stTopP" min="0" max="1" step="0.05" value="0.95" />
+          <span class="badge" id="stTopPVal">0.95</span>
+        </div>
+      </div>
+      <div>
+        <div class="label">최대 토큰</div>
+        <input id="stMaxTok" type="number" min="128" max="8192" step="64" value="2048" />
       </div>
     </div>
+    <div class="footer" style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
+      <button id="btnCloseSettings" class="ghost">닫기</button>
+      <button id="btnSaveSettings" class="primary">저장</button>
+    </div>
   </div>
+</div>
 
   <script type="module" src="./app.js"></script>
 
