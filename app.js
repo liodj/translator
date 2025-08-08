@@ -167,25 +167,39 @@
   }
 
   function loadSettingsToUI() {
-    if (el.stModel) {
-        const v = st.model || DEFAULTS.model;
-        if (![...el.stModel.options].some(o => o.value === v)) {
-        const opt = document.createElement('option');
-        opt.value = v; opt.textContent = v; el.stModel.appendChild(opt);
-        }
-        el.stModel.value = v;
-    }
+  // 1) st를 먼저 준비
+  const st = LS.settings;
 
-    const st = LS.settings;
-    if (el.stModel) el.stModel.value = st.model || DEFAULTS.model;
-    if (el.stTone) el.stTone.value = st.tone || DEFAULTS.tone;
-    if (el.stVariety) el.stVariety.value = st.variety || DEFAULTS.variety;
-    if (el.stPreserve) el.stPreserve.checked = ('preserve' in st ? !!st.preserve : DEFAULTS.preserve);
-    if (el.stTemp) { el.stTemp.value = String(st.temperature ?? DEFAULTS.temperature); el.stTempVal.textContent = String(el.stTemp.value); }
-    if (el.stTopP) { el.stTopP.value = String(st.topP ?? DEFAULTS.topP); el.stTopPVal.textContent = String(el.stTopP.value); }
-    if (el.stMaxTok) el.stMaxTok.value = String(st.maxTokens ?? DEFAULTS.maxTokens);
-    if (el.modelBadge) el.modelBadge.textContent = 'model: ' + (st.model || DEFAULTS.model);
+  // 2) 모델 드롭다운: 저장된 값이 옵션에 없으면 동적 추가 후 선택
+  if (el.stModel) {
+    const v = st.model || DEFAULTS.model;
+    const optValues = Array.from(el.stModel.options).map(o => o.value);
+    if (!optValues.includes(v)) {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = v;
+      el.stModel.appendChild(opt);
+    }
+    el.stModel.value = v; // 여기서 딱 한 번만 세팅
   }
+
+  // 3) 나머지 설정 UI 반영
+  if (el.stTone)     el.stTone.value = st.tone || DEFAULTS.tone;
+  if (el.stVariety)  el.stVariety.value = st.variety || DEFAULTS.variety;
+  if (el.stPreserve) el.stPreserve.checked = ('preserve' in st ? !!st.preserve : DEFAULTS.preserve);
+
+  if (el.stTemp) {
+    el.stTemp.value = String(st.temperature ?? DEFAULTS.temperature);
+    if (el.stTempVal) el.stTempVal.textContent = String(el.stTemp.value);
+  }
+  if (el.stTopP) {
+    el.stTopP.value = String(st.topP ?? DEFAULTS.topP);
+    if (el.stTopPVal) el.stTopPVal.textContent = String(el.stTopP.value);
+  }
+  if (el.stMaxTok) el.stMaxTok.value = String(st.maxTokens ?? DEFAULTS.maxTokens);
+
+  if (el.modelBadge) el.modelBadge.textContent = 'model: ' + (st.model || DEFAULTS.model);
+}
+
 
   function saveSettingsFromUI() {
     const st = LS.settings;
