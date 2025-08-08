@@ -213,9 +213,22 @@
 
     function lineEl(text, idx, isTran){ const div = document.createElement('div'); div.className='line'; const num = document.createElement('div'); num.textContent=idx+1; num.className='badge'; const body = document.createElement('div'); body.className = isTran? 'tran':'orig'; body.textContent=text; const btns = document.createElement('div'); btns.className='toolbar'; const copy=document.createElement('button'); copy.textContent='복사'; copy.addEventListener('click', ()=>navigator.clipboard.writeText(text)); btns.appendChild(copy); div.appendChild(num); div.appendChild(body); div.appendChild(btns); return div; }
 
-    function exportCSV(){ const rows = [['original','translation','src','tgt']].concat(LS.lines.map(l=>[l.orig,l.tran,l.src,l.tgt])); const csv = rows.map(r=>r.map(s=>`"${String(s).replace(/"/g,'""')}"`).join(',')).join('
-'); const blob = new Blob(["﻿"+csv], {type:'text/csv;charset=utf-8'}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='translations.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(url), 1000); }"`).join(',')).join('
-'); const blob = new Blob(["﻿"+csv], {type:'text/csv;charset=utf-8'}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='translations.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(url), 1000); }
+    function exportCSV() {
+      const rows = [['original','translation','src','tgt']]
+        .concat(LS.lines.map(l => [l.orig, l.tran, l.src, l.tgt]));
+
+      const csv = rows
+        .map(r => r.map(s => '"' + String(s).replace(/"/g, '""') + '"').join(','))
+        .join('\n'); // ← 줄바꿈은 꼭 '\n' 로!
+
+      const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'translations.csv'; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+
 
     function renderGlossary(){ const list = LS.glossary; el.gList.innerHTML=''; el.gCount.textContent = `(${list.length}개)`; list.forEach((g,idx)=>{ const row=document.createElement('div'); row.className='row'; const chip=document.createElement('span'); chip.className='pill'; chip.innerHTML = `<b>${escapeHTML(g.src)}</b> → ${escapeHTML(g.tgt)} ${g.whole?'(word)':''}`; const del=document.createElement('button'); del.textContent='삭제'; del.addEventListener('click', ()=>{ const arr=LS.glossary; arr.splice(idx,1); LS.glossary = arr; renderGlossary(); }); row.appendChild(chip); row.appendChild(del); el.gList.appendChild(row); }); }
 
@@ -232,9 +245,8 @@
     glossLines = '
 
 Glossary (terms to enforce):
-' + lines.join('
-');
-  }
+' + lines.join('');
+}
   var prompt = 'You are a professional translation engine. ' +
                'Translate the following text from ' + from + ' to ' + tgt + '. ' +
                'Preserve meaning, tone, punctuation, and inline markup if any.' +
@@ -247,14 +259,12 @@ Glossary (terms to enforce):
 Text:
 ' + text;
   return prompt;
-}" -> "${g.tgt}"${g.whole?' (whole word)':''}`).join('
-')) : ''; return `You are a professional translation engine. Translate the following text from ${from} to ${tgt}. Preserve meaning, tone, punctuation, and inline markup if any.${glossLines}
+}" -> "${g.tgt}"${g.whole?' (whole word)':''}`).join('')) : ''; return `You are a professional translation engine. Translate the following text from ${from} to ${tgt}. Preserve meaning, tone, punctuation, and inline markup if any.${glossLines}
 
 Return only the translation with no quotes or extra commentary.
 
 Text:
-${text}`; }" -> "${g.tgt}"${g.whole?' (whole word)':''}`).join('
-')) : '';
+${text}`; }" -> "${g.tgt}"${g.whole?' (whole word)':''}`).join('')) : '';
       return `You are a professional translation engine. Translate the following text from ${from} to ${tgt}. Preserve meaning, tone, punctuation, and inline markup if any.${glossLines}
 
 Return only the translation with no quotes or extra commentary.
